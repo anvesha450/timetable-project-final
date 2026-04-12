@@ -169,14 +169,19 @@ def create_user_table():
     )
     """)
 
+    # Commit table creation first (important for PostgreSQL - rollback would undo everything)
+    conn.commit()
+
     # Safely add missing columns to existing databases
     if USE_POSTGRES:
         try:
             cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
+            conn.commit()
         except psycopg2.errors.DuplicateColumn:
             conn.rollback()
         try:
             cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
+            conn.commit()
         except psycopg2.errors.DuplicateColumn:
             conn.rollback()
     else:
