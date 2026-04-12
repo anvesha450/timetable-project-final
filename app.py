@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-import psycopg2
-import psycopg2.extras
 import string
 import random
 import os
@@ -9,97 +7,119 @@ app = Flask(__name__)
 
 # ---------------- DATABASE ----------------
 # Use DATABASE_URL from environment (Render sets this automatically for PostgreSQL)
-# Falls back to local SQLite-style for development (you can set DATABASE_URL locally too)
+# Falls back to local SQLite for development
 DATABASE_URL = os.environ.get("DATABASE_URL")
+USE_POSTGRES = bool(DATABASE_URL)
 
 # Render provides DATABASE_URL starting with "postgres://" but psycopg2 needs "postgresql://"
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+    import psycopg2.errors
+else:
+    import sqlite3
+
 def get_db():
     """Get a database connection."""
-    if DATABASE_URL:
+    if USE_POSTGRES:
         conn = psycopg2.connect(DATABASE_URL)
     else:
-        # Local development fallback - use local PostgreSQL or raise error
-        conn = psycopg2.connect(
-            host="localhost",
-            database="timetable",
-            user="postgres",
-            password="postgres",
-            port=5432
-        )
+        os.makedirs("data", exist_ok=True)
+        conn = sqlite3.connect("data/timetable.db")
     return conn
+
+def q(sql):
+    """Convert PostgreSQL SQL syntax to SQLite when needed."""
+    if not USE_POSTGRES:
+        sql = sql.replace("%s", "?")
+        sql = sql.replace("NOW()", "datetime('now')")
+        sql = sql.replace("COALESCE(", "IFNULL(")
+    return sql
+
+# Unified IntegrityError for both databases
+if USE_POSTGRES:
+    DBIntegrityError = psycopg2.IntegrityError
+else:
+    DBIntegrityError = sqlite3.IntegrityError
 
 def create_user_table():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    # Use SERIAL for PostgreSQL, INTEGER PRIMARY KEY AUTOINCREMENT for SQLite
+    if USE_POSTGRES:
+        pk = "SERIAL PRIMARY KEY"
+    else:
+        pk = "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         username TEXT,
         password TEXT,
         role TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS login_history (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         username TEXT,
         role TEXT,
         time TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS subjects (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         subject_name TEXT,
         subject_code TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS classes (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         course_name TEXT,
         section TEXT,
         student_strength INTEGER
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS rooms (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         room_no TEXT,
         capacity INTEGER,
         room_type TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS notifications (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         message TEXT,
         target_role TEXT,
         time TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS assignments (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         title TEXT,
         deadline TEXT,
         time_posted TEXT
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS timetables (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         class_id INTEGER,
         day TEXT,
         period INTEGER,
@@ -110,9 +130,9 @@ def create_user_table():
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS teacher_subjects (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         teacher_id INTEGER,
         subject_id INTEGER,
         priority INTEGER DEFAULT 1,
@@ -120,18 +140,18 @@ def create_user_table():
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS class_subjects (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         class_id INTEGER,
         subject_id INTEGER,
         UNIQUE(class_id, subject_id)
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS teacher_preferences (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         teacher_id INTEGER,
         day TEXT,
         period INTEGER,
@@ -140,9 +160,9 @@ def create_user_table():
     )
     """)
 
-    cursor.execute("""
+    cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS timetable_rules (
-        id SERIAL PRIMARY KEY,
+        id {pk},
         rule_name TEXT,
         rule_description TEXT,
         is_active INTEGER DEFAULT 1
@@ -150,14 +170,24 @@ def create_user_table():
     """)
 
     # Safely add missing columns to existing databases
-    try:
-        cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
-    except psycopg2.errors.DuplicateColumn:
-        conn.rollback()
-    try:
-        cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
-    except psycopg2.errors.DuplicateColumn:
-        conn.rollback()
+    if USE_POSTGRES:
+        try:
+            cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
+        except psycopg2.errors.DuplicateColumn:
+            conn.rollback()
+        try:
+            cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
+        except psycopg2.errors.DuplicateColumn:
+            conn.rollback()
+    else:
+        try:
+            cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
+        except sqlite3.OperationalError:
+            pass
 
     conn.commit()
     conn.close()
@@ -167,7 +197,7 @@ def get_user(username):
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+    cursor.execute(q("SELECT * FROM users WHERE username=%s"), (username,))
     user = cursor.fetchone()
 
     conn.close()
@@ -179,7 +209,7 @@ def add_user(username, password, role):
     cursor = conn.cursor()
 
     cursor.execute(
-        "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+        q("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)"),
         (username, password, role)
     )
 
@@ -228,7 +258,7 @@ def login():
             cursor = conn.cursor()
 
             cursor.execute(
-                "INSERT INTO login_history (username, role, time) VALUES (%s, %s, NOW())",
+                q("INSERT INTO login_history (username, role, time) VALUES (%s, %s, NOW())"),
                 (username, role)
             )
 
@@ -253,12 +283,12 @@ def admin_data():
     teachers = []
     for row in teachers_raw:
         teacher_id = row[0]
-        cursor.execute("""
+        cursor.execute(q("""
             SELECT s.id, s.subject_name, ts.priority 
             FROM teacher_subjects ts 
             JOIN subjects s ON ts.subject_id = s.id 
             WHERE ts.teacher_id = %s
-        """, (teacher_id,))
+        """), (teacher_id,))
         assigned_subjects = [{"id": r[0], "name": r[1], "priority": r[2]} for r in cursor.fetchall()]
         teachers.append({
             "id": teacher_id, 
@@ -278,7 +308,7 @@ def admin_data():
     classes = []
     for row in classes_raw:
         class_id = row[0]
-        cursor.execute("SELECT s.id, s.subject_name FROM class_subjects cs JOIN subjects s ON cs.subject_id = s.id WHERE cs.class_id = %s", (class_id,))
+        cursor.execute(q("SELECT s.id, s.subject_name FROM class_subjects cs JOIN subjects s ON cs.subject_id = s.id WHERE cs.class_id = %s"), (class_id,))
         assigned_subjects = [{"id": r[0], "name": r[1]} for r in cursor.fetchall()]
         classes.append({
             "id": class_id, 
@@ -295,7 +325,7 @@ def admin_data():
     logins = cursor.fetchall()
 
     cursor.execute("SELECT id, message, target_role, time FROM notifications ORDER BY id DESC")
-    notifications = [{"id": row[0], "message": row[1], "target_role": row[2], "time": row[3]} for row in cursor.fetchall()]
+    notifications = [{"id": row[0], "message": row[1], "target_role": row[2], "time": str(row[3]) if row[3] else None} for row in cursor.fetchall()]
 
     cursor.execute("SELECT id, rule_name, rule_description, is_active FROM timetable_rules")
     rules = [{"id": row[0], "rule_name": row[1], "rule_description": row[2], "is_active": row[3]} for row in cursor.fetchall()]
@@ -308,7 +338,7 @@ def admin_data():
         "subjects": subjects,
         "classes": classes,
         "rooms": rooms,
-        "logins": [{"name": row[0], "role": row[1], "time": row[2]} for row in logins],
+        "logins": [{"name": row[0], "role": row[1], "time": str(row[2]) if row[2] else None} for row in logins],
         "notifications": notifications,
         "rules": rules
     })
@@ -323,7 +353,7 @@ def api_add_user():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", 
+    cursor.execute(q("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)"), 
                    (data["username"], password, data["role"]))
     conn.commit()
     conn.close()
@@ -334,10 +364,10 @@ def api_edit_user(user_id):
     conn = get_db()
     cursor = conn.cursor()
     if request.method == "DELETE":
-        cursor.execute("DELETE FROM users WHERE id=%s", (user_id,))
+        cursor.execute(q("DELETE FROM users WHERE id=%s"), (user_id,))
     elif request.method == "PUT":
         data = request.get_json()
-        cursor.execute("UPDATE users SET username=%s, password=%s WHERE id=%s", 
+        cursor.execute(q("UPDATE users SET username=%s, password=%s WHERE id=%s"), 
                        (data["username"], data["password"], user_id))
     conn.commit()
     conn.close()
@@ -360,7 +390,7 @@ def api_forgot_password():
     # Update password in DB
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET password=%s WHERE username=%s", (new_password, username))
+    cursor.execute(q("UPDATE users SET password=%s WHERE username=%s"), (new_password, username))
     conn.commit()
     conn.close()
     
@@ -379,7 +409,7 @@ def api_add_subject():
     data = request.get_json()
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO subjects (subject_name, subject_code) VALUES (%s, %s)", 
+    cursor.execute(q("INSERT INTO subjects (subject_name, subject_code) VALUES (%s, %s)"), 
                    (data["subject_name"], data["subject_code"]))
     conn.commit()
     conn.close()
@@ -390,10 +420,10 @@ def api_edit_subject(subject_id):
     conn = get_db()
     cursor = conn.cursor()
     if request.method == "DELETE":
-        cursor.execute("DELETE FROM subjects WHERE id=%s", (subject_id,))
+        cursor.execute(q("DELETE FROM subjects WHERE id=%s"), (subject_id,))
     elif request.method == "PUT":
         data = request.get_json()
-        cursor.execute("UPDATE subjects SET subject_name=%s, subject_code=%s WHERE id=%s", 
+        cursor.execute(q("UPDATE subjects SET subject_name=%s, subject_code=%s WHERE id=%s"), 
                        (data["subject_name"], data["subject_code"], subject_id))
     conn.commit()
     conn.close()
@@ -405,7 +435,7 @@ def api_add_class():
     data = request.get_json()
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO classes (course_name, section, student_strength) VALUES (%s, %s, %s)", 
+    cursor.execute(q("INSERT INTO classes (course_name, section, student_strength) VALUES (%s, %s, %s)"), 
                    (data["course_name"], data["section"], data["student_strength"]))
     conn.commit()
     conn.close()
@@ -416,10 +446,10 @@ def api_edit_class(class_id):
     conn = get_db()
     cursor = conn.cursor()
     if request.method == "DELETE":
-        cursor.execute("DELETE FROM classes WHERE id=%s", (class_id,))
+        cursor.execute(q("DELETE FROM classes WHERE id=%s"), (class_id,))
     elif request.method == "PUT":
         data = request.get_json()
-        cursor.execute("UPDATE classes SET course_name=%s, section=%s, student_strength=%s WHERE id=%s", 
+        cursor.execute(q("UPDATE classes SET course_name=%s, section=%s, student_strength=%s WHERE id=%s"), 
                        (data["course_name"], data["section"], data["student_strength"], class_id))
     conn.commit()
     conn.close()
@@ -431,7 +461,7 @@ def api_add_rule():
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO timetable_rules (rule_name, rule_description) VALUES (%s, %s)", 
+    cursor.execute(q("INSERT INTO timetable_rules (rule_name, rule_description) VALUES (%s, %s)"), 
                    (data['rule_name'], data['rule_description']))
     conn.commit()
     conn.close()
@@ -441,7 +471,7 @@ def api_add_rule():
 def api_delete_rule(id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM timetable_rules WHERE id = %s", (id,))
+    cursor.execute(q("DELETE FROM timetable_rules WHERE id = %s"), (id,))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
@@ -451,7 +481,7 @@ def api_add_room():
     data = request.get_json()
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO rooms (room_no, capacity, room_type) VALUES (%s, %s, %s)", 
+    cursor.execute(q("INSERT INTO rooms (room_no, capacity, room_type) VALUES (%s, %s, %s)"), 
                    (data["room_no"], data["capacity"], data["room_type"]))
     conn.commit()
     conn.close()
@@ -462,10 +492,10 @@ def api_edit_room(room_id):
     conn = get_db()
     cursor = conn.cursor()
     if request.method == "DELETE":
-        cursor.execute("DELETE FROM rooms WHERE id=%s", (room_id,))
+        cursor.execute(q("DELETE FROM rooms WHERE id=%s"), (room_id,))
     elif request.method == "PUT":
         data = request.get_json()
-        cursor.execute("UPDATE rooms SET room_no=%s, capacity=%s, room_type=%s WHERE id=%s", 
+        cursor.execute(q("UPDATE rooms SET room_no=%s, capacity=%s, room_type=%s WHERE id=%s"), 
                        (data["room_no"], data["capacity"], data["room_type"], room_id))
     conn.commit()
     conn.close()
@@ -477,7 +507,7 @@ def api_notify():
     data = request.get_json()
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO notifications (message, target_role, time) VALUES (%s, %s, NOW())", 
+    cursor.execute(q("INSERT INTO notifications (message, target_role, time) VALUES (%s, %s, NOW())"), 
                    (data["message"], data["target_role"]))
     conn.commit()
     conn.close()
@@ -487,7 +517,7 @@ def api_notify():
 def api_get_notifications(role):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT message, time FROM notifications WHERE target_role=%s OR target_role='all' ORDER BY id DESC", (role,))
+    cursor.execute(q("SELECT message, time FROM notifications WHERE target_role=%s OR target_role='all' ORDER BY id DESC"), (role,))
     notifs = [{"message": row[0], "time": str(row[1]) if row[1] else None} for row in cursor.fetchall()]
     conn.close()
     return jsonify({"notifications": notifs})
@@ -546,10 +576,10 @@ def api_generate_timetable():
     cursor.execute("DELETE FROM timetables") 
     
     for t in result["timetable"]:
-        cursor.execute("""
+        cursor.execute(q("""
         INSERT INTO timetables (class_id, day, period, subject_id, teacher_id, room_id)
         VALUES (%s, %s, %s, %s, %s, %s)
-        """, (t["class_id"], t["day"], t["period"], t["subject_id"], t["teacher_id"], t["room_id"]))
+        """), (t["class_id"], t["day"], t["period"], t["subject_id"], t["teacher_id"], t["room_id"]))
 
     conn.commit()
     conn.close()
@@ -562,7 +592,7 @@ def api_get_teacher_info():
     teacher_username = request.args.get("username")
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE username=%s AND role='teacher'", (teacher_username,))
+    cursor.execute(q("SELECT id FROM users WHERE username=%s AND role='teacher'"), (teacher_username,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -571,23 +601,23 @@ def api_get_teacher_info():
     tid = row[0]
     
     # Get assigned subjects
-    cursor.execute("""
+    cursor.execute(q("""
         SELECT s.id, s.subject_name, s.subject_code 
         FROM teacher_subjects ts 
         JOIN subjects s ON ts.subject_id = s.id 
         WHERE ts.teacher_id = %s
         ORDER BY s.subject_name
-    """, (tid,))
+    """), (tid,))
     subjects = [{"id": r[0], "name": r[1], "code": r[2]} for r in cursor.fetchall()]
     
     # Get classes this teacher handles (from timetable)
-    cursor.execute("""
+    cursor.execute(q("""
         SELECT DISTINCT c.id, c.course_name, c.section
         FROM timetables t
         JOIN classes c ON t.class_id = c.id
         WHERE t.teacher_id = %s OR t.substitute_id = %s
         ORDER BY c.course_name, c.section
-    """, (tid, tid))
+    """), (tid, tid))
     classes = [{"id": r[0], "course_name": r[1], "section": r[2]} for r in cursor.fetchall()]
     
     conn.close()
@@ -598,13 +628,13 @@ def api_get_teacher_preferences():
     teacher_username = request.args.get("username")
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE username=%s AND role='teacher'", (teacher_username,))
+    cursor.execute(q("SELECT id FROM users WHERE username=%s AND role='teacher'"), (teacher_username,))
     row = cursor.fetchone()
     if not row:
         return jsonify({"preferences": []})
     
     tid = row[0]
-    cursor.execute("SELECT day, period, pref_type FROM teacher_preferences WHERE teacher_id=%s", (tid,))
+    cursor.execute(q("SELECT day, period, pref_type FROM teacher_preferences WHERE teacher_id=%s"), (tid,))
     prefs = [{"day": r[0], "period": r[1], "pref_type": r[2]} for r in cursor.fetchall()]
     conn.close()
     return jsonify({"preferences": prefs})
@@ -618,15 +648,15 @@ def api_save_teacher_preferences():
     
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE username=%s AND role='teacher'", (teacher_username,))
+    cursor.execute(q("SELECT id FROM users WHERE username=%s AND role='teacher'"), (teacher_username,))
     row = cursor.fetchone()
     if not row:
         return jsonify({"status": "error", "message": "Teacher not found"})
     
     tid = row[0]
-    cursor.execute("DELETE FROM teacher_preferences WHERE teacher_id=%s", (tid,))
+    cursor.execute(q("DELETE FROM teacher_preferences WHERE teacher_id=%s"), (tid,))
     for p in prefs:
-        cursor.execute("INSERT INTO teacher_preferences (teacher_id, day, period, pref_type) VALUES (%s, %s, %s, %s)",
+        cursor.execute(q("INSERT INTO teacher_preferences (teacher_id, day, period, pref_type) VALUES (%s, %s, %s, %s)"),
                        (tid, p['day'], p['period'], p['pref_type']))
     conn.commit()
     conn.close()
@@ -637,7 +667,7 @@ def api_get_timetable():
     conn = get_db()
     cursor = conn.cursor()
 
-    query = """
+    query = q("""
         SELECT t.class_id, c.course_name, c.section, t.day, t.period, 
                s.subject_name, 
                CASE 
@@ -650,7 +680,7 @@ def api_get_timetable():
         JOIN subjects s ON t.subject_id = s.id
         LEFT JOIN users u ON t.teacher_id = u.id
         LEFT JOIN rooms r ON t.room_id = r.id
-    """
+    """)
     
     cursor.execute(query)
     rows = cursor.fetchall()
@@ -673,7 +703,7 @@ def api_get_timetable():
 def api_unassign_subject(teacher_id, subject_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM teacher_subjects WHERE teacher_id=%s AND subject_id=%s", (teacher_id, subject_id))
+    cursor.execute(q("DELETE FROM teacher_subjects WHERE teacher_id=%s AND subject_id=%s"), (teacher_id, subject_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
@@ -685,12 +715,13 @@ def api_assign_subject():
     cursor = conn.cursor()
     priority = data.get("priority", 1)
     try:
-        cursor.execute("INSERT INTO teacher_subjects (teacher_id, subject_id, priority) VALUES (%s, %s, %s)", 
+        cursor.execute(q("INSERT INTO teacher_subjects (teacher_id, subject_id, priority) VALUES (%s, %s, %s)"), 
                        (data["teacher_id"], data["subject_id"], priority))
         conn.commit()
-    except psycopg2.IntegrityError:
-        conn.rollback()
-        cursor.execute("UPDATE teacher_subjects SET priority=%s WHERE teacher_id=%s AND subject_id=%s",
+    except DBIntegrityError:
+        if USE_POSTGRES:
+            conn.rollback()
+        cursor.execute(q("UPDATE teacher_subjects SET priority=%s WHERE teacher_id=%s AND subject_id=%s"),
                        (priority, data["teacher_id"], data["subject_id"]))
         conn.commit()
     except Exception as e:
@@ -704,7 +735,7 @@ def api_assign_subject():
 def api_unassign_class_subject(class_id, subject_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM class_subjects WHERE class_id=%s AND subject_id=%s", (class_id, subject_id))
+    cursor.execute(q("DELETE FROM class_subjects WHERE class_id=%s AND subject_id=%s"), (class_id, subject_id))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
@@ -715,11 +746,12 @@ def api_assign_class_subject():
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO class_subjects (class_id, subject_id) VALUES (%s, %s)", 
+        cursor.execute(q("INSERT INTO class_subjects (class_id, subject_id) VALUES (%s, %s)"), 
                        (data["class_id"], data["subject_id"]))
         conn.commit()
-    except psycopg2.IntegrityError:
-        conn.rollback()
+    except DBIntegrityError:
+        if USE_POSTGRES:
+            conn.rollback()
         pass # Already assigned
     except Exception as e:
         conn.close()
@@ -735,7 +767,7 @@ def api_assignment():
     
     if request.method == "POST":
         data = request.get_json()
-        cursor.execute("INSERT INTO assignments (title, deadline, time_posted) VALUES (%s, %s, NOW())", 
+        cursor.execute(q("INSERT INTO assignments (title, deadline, time_posted) VALUES (%s, %s, NOW())"), 
                        (data["title"], data["deadline"]))
         conn.commit()
         conn.close()
@@ -755,7 +787,7 @@ def api_auto_substitute():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, day, period FROM timetables WHERE (teacher_id = %s OR substitute_id = %s) AND day = %s", (teacher_id, teacher_id, day))
+    cursor.execute(q("SELECT id, day, period FROM timetables WHERE (teacher_id = %s OR substitute_id = %s) AND day = %s"), (teacher_id, teacher_id, day))
     slots = cursor.fetchall()
 
     if not slots:
@@ -769,18 +801,18 @@ def api_auto_substitute():
         # Find teachers who are free at (d, p)
         # 1. Not scheduled as original teacher
         # 2. Not already scheduled as substitute
-        query = """
+        query = q("""
             SELECT id FROM users 
             WHERE role='teacher' AND id != %s
             AND id NOT IN (SELECT teacher_id FROM timetables WHERE day=%s AND period=%s)
             AND id NOT IN (SELECT substitute_id FROM timetables WHERE day=%s AND period=%s AND substitute_id IS NOT NULL)
-        """
+        """)
         cursor.execute(query, (teacher_id, day, p, day, p))
         available = cursor.fetchall()
         
         if available:
             sub_id = random.choice(available)[0]
-            cursor.execute("UPDATE timetables SET substitute_id = %s WHERE id = %s", (sub_id, slot_id))
+            cursor.execute(q("UPDATE timetables SET substitute_id = %s WHERE id = %s"), (sub_id, slot_id))
             subs_found += 1
 
     conn.commit()
@@ -811,14 +843,16 @@ def api_update_timetable_slot():
     updates = []
     values = []
     
+    ph = "%s" if USE_POSTGRES else "?"
+    
     if "subject_id" in data:
-        updates.append("subject_id = %s")
+        updates.append(f"subject_id = {ph}")
         values.append(data["subject_id"])
     if "teacher_id" in data:
-        updates.append("teacher_id = %s")
+        updates.append(f"teacher_id = {ph}")
         values.append(data["teacher_id"])
     if "room_id" in data:
-        updates.append("room_id = %s")
+        updates.append(f"room_id = {ph}")
         values.append(data["room_id"])
     
     if not updates:
@@ -826,7 +860,7 @@ def api_update_timetable_slot():
         return jsonify({"status": "error", "message": "No fields to update"})
     
     values.append(entry_id)
-    cursor.execute(f"UPDATE timetables SET {', '.join(updates)} WHERE id = %s", values)
+    cursor.execute(f"UPDATE timetables SET {', '.join(updates)} WHERE id = {ph}", values)
     conn.commit()
     conn.close()
     
@@ -846,9 +880,9 @@ def api_swap_timetable_slots():
     cursor = conn.cursor()
     
     # Get both entries
-    cursor.execute("SELECT day, period, subject_id, teacher_id, room_id FROM timetables WHERE id = %s", (id1,))
+    cursor.execute(q("SELECT day, period, subject_id, teacher_id, room_id FROM timetables WHERE id = %s"), (id1,))
     entry1 = cursor.fetchone()
-    cursor.execute("SELECT day, period, subject_id, teacher_id, room_id FROM timetables WHERE id = %s", (id2,))
+    cursor.execute(q("SELECT day, period, subject_id, teacher_id, room_id FROM timetables WHERE id = %s"), (id2,))
     entry2 = cursor.fetchone()
     
     if not entry1 or not entry2:
@@ -856,9 +890,9 @@ def api_swap_timetable_slots():
         return jsonify({"status": "error", "message": "One or both entries not found"})
     
     # Swap the subject, teacher, and room (keep the day/period slots)
-    cursor.execute("UPDATE timetables SET subject_id=%s, teacher_id=%s, room_id=%s WHERE id=%s",
+    cursor.execute(q("UPDATE timetables SET subject_id=%s, teacher_id=%s, room_id=%s WHERE id=%s"),
                    (entry2[2], entry2[3], entry2[4], id1))
-    cursor.execute("UPDATE timetables SET subject_id=%s, teacher_id=%s, room_id=%s WHERE id=%s",
+    cursor.execute(q("UPDATE timetables SET subject_id=%s, teacher_id=%s, room_id=%s WHERE id=%s"),
                    (entry1[2], entry1[3], entry1[4], id2))
     
     conn.commit()
@@ -871,7 +905,7 @@ def api_delete_timetable_slot(entry_id):
     """Delete a single timetable entry"""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM timetables WHERE id = %s", (entry_id,))
+    cursor.execute(q("DELETE FROM timetables WHERE id = %s"), (entry_id,))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
@@ -882,7 +916,7 @@ def api_get_detailed_timetable():
     conn = get_db()
     cursor = conn.cursor()
 
-    query = """
+    query = q("""
         SELECT t.id, t.class_id, c.course_name, c.section, t.day, t.period, 
                t.subject_id, s.subject_name, 
                t.teacher_id,
@@ -896,7 +930,7 @@ def api_get_detailed_timetable():
         JOIN subjects s ON t.subject_id = s.id
         LEFT JOIN users u ON t.teacher_id = u.id
         LEFT JOIN rooms r ON t.room_id = r.id
-    """
+    """)
     
     cursor.execute(query)
     rows = cursor.fetchall()
