@@ -172,27 +172,17 @@ def create_user_table():
     # Commit table creation first (important for PostgreSQL - rollback would undo everything)
     conn.commit()
 
-    # Safely add missing columns to existing databases
-    if USE_POSTGRES:
+    # Safely add missing columns to existing databases (these columns already exist in CREATE TABLE above,
+    # but this handles upgrades from older database versions)
+    for alter_sql in [
+        "ALTER TABLE timetables ADD COLUMN substitute_id INTEGER",
+        "ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1"
+    ]:
         try:
-            cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
+            cursor.execute(alter_sql)
             conn.commit()
-        except psycopg2.errors.DuplicateColumn:
+        except Exception:
             conn.rollback()
-        try:
-            cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
-            conn.commit()
-        except psycopg2.errors.DuplicateColumn:
-            conn.rollback()
-    else:
-        try:
-            cursor.execute("ALTER TABLE timetables ADD COLUMN substitute_id INTEGER")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            cursor.execute("ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1")
-        except sqlite3.OperationalError:
-            pass
 
     conn.commit()
     conn.close()
