@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Student Portal</title>
+    <link rel="stylesheet" href="studentdash.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fa-solid fa-user-graduate"></i> Student</h3>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="#" class="active" onclick="showSection('dashboard')"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+                <a href="#" onclick="showSection('timetable')"><i class="fa-solid fa-calendar-days"></i> My Timetable</a>
+                <a href="#" onclick="showSection('assignments')"><i class="fa-solid fa-file-pen"></i> Assignments</a>
+                <a href="#" onclick="showSection('grades')"><i class="fa-solid fa-chart-line"></i> Grades</a>
+                <a href="#" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>Student Dashboard</h2>
+                <div class="user-profile-mini">
+                    <img src="https://ui-avatars.com/api/?name=Alex+Smith&background=0D8ABC&color=fff" alt="User">
+                    <span> Aman saini</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section">
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon blue"><i class="fa-solid fa-book-open"></i></div>
+                        <div class="card-info">
+                            <h3>Next Class</h3>
+                            <p>Math 101 (10:00 AM)</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon green"><i class="fa-solid fa-check-circle"></i></div>
+                        <div class="card-info">
+                            <h3>Attendance</h3>
+                            <p>92% This Month</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon orange"><i class="fa-solid fa-bell"></i></div>
+                        <div class="card-info">
+                            <h3>Assignments</h3>
+                            <p>2 Pending</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="list-group">
+                    <h4><i class="fa-solid fa-list"></i> Upcoming Assignments</h4>
+                    <div class="list-item">
+                        <span>Physics Lab Report</span>
+                        <span class="status-badge pending">Due Tomorrow</span>
+                    </div>
+                    <div class="list-item">
+                        <span>History Essay</span>
+                        <span class="status-badge pending">Due in 3 Days</span>
+                    </div>
+                    <div class="list-item">
+                        <span>Math Quiz</span>
+                        <span class="status-badge done">Submitted</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="student-dashboard.js"></script>
+    <button onclick="window.location.href='index.html'">Logout</button>
+</body>
+</html>

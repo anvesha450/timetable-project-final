@@ -1,0 +1,76 @@
+  <!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='allpage.css') }}?v=1.4">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+<div id="role-selection">
+
+    <div class="header-text">
+        <div style="margin-bottom: 25px; color: #74b9ff; animation: fadeIn 0.8s ease-out;"><i class="fa-solid fa-calendar-days fa-4x"></i></div>
+        <h1>Time table AI in classroom for academic excellence</h1>
+        <p>Please select your portal to continue</p>
+    </div>
+
+    <div class="role-cards">
+
+    <div class="card" onclick="selectRole('admin')">
+        <i class="fa-solid fa-user-shield fa-3x"></i>
+        <h3>Admin Portal</h3>
+        <p>Manage system settings and users
+            (only for HOD and Directors)
+        </p>
+
+    </div>
+
+    <div class="card" onclick="selectRole('teacher')">
+        <i class="fa-solid fa-chalkboard-user fa-3x"></i>
+        <h3>Teacher Portal</h3>
+        <p>Manage your schedule and classes</p>
+    </div>
+
+    <div class="card" onclick="selectRole('student')">
+        <i class="fa-solid fa-user-graduate fa-3x"></i>
+        <h3>Student Portal</h3>
+        <p>View your class timetable</p>
+    </div>
+
+</div>
+
+</div>
+
+<div id="login-container" style="display:none;">
+    
+    <div class="login-card" id="login-form-card">
+        <h2 id="login-title">Login</h2>
+
+        <input type="text" id="email" placeholder="Enter email">
+        <input type="password" id="password" placeholder="Enter password">
+
+        <button onclick="loginUser(this)">Login</button>
+        <button onclick="goBack()">Back</button>
+
+        <div style="margin-top: 20px;">
+            <a href="#" onclick="showForgotPassword()" style="color: #3b82f6; text-decoration: none; font-size: 0.9rem; font-weight: 500;">Forgot password? Reset via Email</a>
+        </div>
+    </div>
+
+    <div class="login-card" id="forgot-password-card" style="display:none;">
+        <h2 style="font-size: 1.5rem; color: #0f172a; margin-bottom: 5px;">Reset Password</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 0.9rem;">Receive a new system-generated password directly to your registered portal email.</p>
+        <input type="text" id="reset-email" placeholder="Enter registered email">
+        <button onclick="resetPassword(this)">Email New Password</button>
+        <button onclick="hideForgotPassword()" style="background: transparent; color: #64748b; border: 1px solid #e2e8f0; margin-top: 12px;">Cancel</button>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='allpage.js') }}"></script>
+
+</body>
+</html>

@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: #f8fafc;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #0f172a;
+}
+
+#role-selection {
+    text-align: center;
+    width: 100%;
+    max-width: 1000px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.header-text {
+    margin-bottom: 40px;
+}
+
+.header-text h1 {
+    color: #0f172a;
+    margin-bottom: 12px;
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.header-text p {
+    color: #64748b;
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+
+.role-cards {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.role-cards .card {
+    background: #ffffff;
+    padding: 35px 25px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    width: 280px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.role-cards .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+}
+
+.card i {
+    color: #3b82f6; /* Primary Blue */
+    margin-bottom: 20px;
+    transition: transform 0.2s ease;
+}
+
+.card:nth-child(2) i { color: #10b981; } /* Emerald */
+.card:nth-child(3) i { color: #8b5cf6; } /* Violet */
+
+.role-cards .card:hover i {
+    transform: scale(1.05);
+}
+
+.role-cards .card h3 {
+    color: #0f172a;
+    margin-bottom: 10px;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.role-cards .card p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* ===== LOGIN PAGE DESIGN ===== */
+#login-container {
+    width: 100%;
+    max-width: 400px;
+    animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.login-card {
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.login-card h2 {
+    color: #0f172a;
+    margin-bottom: 25px;
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    color: #0f172a;
+}
+
+.login-card input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.login-card button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.login-card button:nth-of-type(1) {
+    background: #3b82f6; 
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.login-card button:nth-of-type(1):hover {
+    background: #2563eb;
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.login-card button:nth-of-type(2) {
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    margin-top: 12px;
+}
+
+.login-card button:nth-of-type(2):hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+/* ========== MOBILE RESPONSIVE ========== */
+@media (max-width: 768px) {
+    body {
+        padding: 16px;
+        align-items: flex-start;
+        padding-top: 40px;
+    }
+
+    .header-text h1 {
+        font-size: 1.6rem;
+    }
+
+    .header-text p {
+        font-size: 0.95rem;
+    }
+
+    .role-cards {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .role-cards .card {
+        width: 100%;
+        max-width: 320px;
+        padding: 28px 20px;
+    }
+
+    .login-card {
+        padding: 30px 24px;
+    }
+
+    .login-card input {
+        font-size: 16px; /* Prevents iOS zoom */
+        padding: 14px 16px;
+    }
+
+    #login-container {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-text {
+        margin-bottom: 28px;
+    }
+
+    .header-text h1 {
+        font-size: 1.35rem;
+    }
+
+    .role-cards .card {
+        padding: 24px 18px;
+    }
+
+    .role-cards .card h3 {
+        font-size: 1.1rem;
+    }
+}

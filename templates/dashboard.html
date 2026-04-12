@@ -1,0 +1,560 @@
+<html>
+
+<head>
+    <title>Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v=2.1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa fa-bars"></i></button>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="container">
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <h2><i class="fa-solid fa-user-shield"></i> Admin</h2>
+
+            <a onclick="showSection('dashboard')"><i class="fa fa-home"></i> Home</a>
+            <a onclick="showSection('teachers')"><i class="fa fa-chalkboard-user"></i> Manage Teacher</a>
+            <a onclick="showSection('subjects')"><i class="fa fa-book"></i> Manage Subject</a>
+            <a onclick="showSection('classes')"><i class="fa fa-users-rectangle"></i> Manage Classes</a>
+            <a onclick="showSection('rooms')"><i class="fa fa-building"></i> Manage Room / Lab</a>
+            <a onclick="showSection('generate')"><i class="fa fa-calendar-plus"></i> Generate Timetable</a>
+            <a onclick="showSection('view')"><i class="fa fa-table"></i> View Timetable</a>
+            <a onclick="showSection('edit')"><i class="fa fa-edit"></i> Edit Timetable</a>
+            <a onclick="showSection('notify')"><i class="fa fa-bell"></i> Notifications</a>
+            <a onclick="showSection('students')"><i class="fa fa-user-graduate"></i> Manage Student</a>
+            <a onclick="showSection('rules_section')"><i class="fa fa-gavel"></i> Manage Rules</a>
+
+            <hr>
+
+            <a onclick="logout()" class="logout"><i class="fa fa-right-from-bracket"></i> Logout</a>
+        </div>
+
+        <!-- MAIN -->
+        <div class="main">
+
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="section">
+                <h2>Welcome to Admin Dashboard</h2>
+
+                <div class="cards feature-grid" style="margin-top: 20px;">
+                    <div class="card interactive-card" onclick="showSection('teachers')">
+                        <i class="fa fa-chalkboard-user"></i>
+                        <h3>Manage Teachers</h3>
+                        <p>Total: <b id="dashTeacherCount">0</b></p>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="showSection('students')">
+                        <i class="fa fa-user-graduate"></i>
+                        <h3>Manage Students</h3>
+                        <p>Total: <b id="dashStudentCount">0</b></p>
+                    </div>
+                    <div class="card interactive-card teacher-card" onclick="showSection('subjects')">
+                        <i class="fa fa-book"></i>
+                        <h3>Manage Subjects</h3>
+                        <p>Total: <b id="dashSubjectCount">0</b></p>
+                    </div>
+                    <div class="card interactive-card" onclick="showSection('classes')">
+                        <i class="fa fa-school" style="color:#f59e0b;"></i>
+                        <h3>Manage Classes</h3>
+                        <p>Total: <b id="dashClassCount">0</b></p>
+                    </div>
+                </div>
+
+                <div class="section-box"
+                    style="margin-top: 30px; background: #ffffff; border: 1px solid #e2e8f0; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <h3 style="font-size: 20px; color: #0f172a; margin-bottom: 8px;"><i class="fa fa-bolt" style="color: #f59e0b; margin-right: 8px;"></i> Quick Actions</h3>
+                    <p style="color: #64748b; margin-bottom: 25px; font-size: 15px;">Jump straight into setting up the
+                        university configuration.</p>
+                    <button onclick="openUserModal('teacher')" class="btn-ai"
+                        style="background: #3b82f6; margin-right: 12px;">+
+                        Add Teacher</button>
+                    <button onclick="openUserModal('student')" class="btn-ai"
+                        style="background: #3b82f6; margin-right: 12px;">+
+                        Add Student</button>
+                    <button onclick="showSection('notify')" class="btn-ai"
+                        style="background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: none;">Broadcast
+                        Message</button>
+                </div>
+            </div>
+
+            <!-- EDIT -->
+            <div id="edit" class="section" style="display:none;">
+                <div class="section-box" style="padding: 30px 20px;">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <i class="fa fa-edit fa-3x" style="color:#f59e0b; margin-bottom: 15px;"></i>
+                        <h2 style="margin-bottom: 8px;">Edit Timetable</h2>
+                        <p style="color:#636e72;">Select a class, then click on any cell to modify it. You can also swap two periods.</p>
+                    </div>
+
+                    <!-- Class Selection for Edit -->
+                    <div id="editClassCards" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 25px;">
+                        <!-- Injected dynamically -->
+                    </div>
+
+                    <!-- Edit Actions Bar -->
+                    <div id="editActionsBar" style="display: none; text-align: center; margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <button id="swapModeBtn" onclick="toggleSwapMode()" class="btn-ai" style="background: #8b5cf6; margin-right: 10px; padding: 10px 20px;">
+                            <i class="fa fa-arrows-rotate" style="margin-right: 6px;"></i> Swap Mode: OFF
+                        </button>
+                        <button onclick="refreshEditTimetable()" class="btn-ai" style="background: #3b82f6; padding: 10px 20px;">
+                            <i class="fa fa-refresh" style="margin-right: 6px;"></i> Refresh
+                        </button>
+                        <p id="swapInstruction" style="display:none; margin-top: 10px; color: #8b5cf6; font-weight: 600;">
+                            <i class="fa fa-info-circle"></i> Click two cells to swap them. Click "Swap Mode" again to cancel.
+                        </p>
+                    </div>
+
+                    <!-- Editable Timetable Grid -->
+                    <div id="editTimetableContainer" style="display: none; text-align: left;">
+                        <h3 id="editTimetableTitle" style="color:#2d3436; margin-bottom: 20px; text-align: center;">
+                            <i class="fa fa-calendar-alt" style="color:#f59e0b; margin-right: 10px;"></i> Edit Timetable
+                        </h3>
+                        <div style="background: white; border: 1px solid #dfe6e9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow-x: auto;">
+                            <table style="width: 100%; min-width: 800px; margin-top: 0; box-shadow: none; border-radius: 0; border-collapse: collapse; text-align: center;">
+                                <thead>
+                                    <tr id="editTimetableHeaderRow"></tr>
+                                </thead>
+                                <tbody id="editTimetableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EDIT SLOT MODAL -->
+            <div id="editSlotModal" class="modal" style="display:none;">
+                <div class="modal-content" style="max-width: 500px;">
+                    <h3><i class="fa fa-edit" style="color: #f59e0b; margin-right: 8px;"></i> Edit Period Slot</h3>
+                    <input type="hidden" id="editSlotId">
+                    <p id="editSlotInfo" style="color: #64748b; margin-bottom: 15px; font-size: 0.9rem;"></p>
+                    
+                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px;">Subject</label>
+                    <select id="editSlotSubject" class="input-field"></select>
+                    
+                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px; margin-top: 12px;">Teacher</label>
+                    <select id="editSlotTeacher" class="input-field"></select>
+                    
+                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px; margin-top: 12px;">Room</label>
+                    <select id="editSlotRoom" class="input-field"></select>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button onclick="saveEditSlot()" class="btn-ai" style="flex: 1;">
+                            <i class="fa fa-save" style="margin-right: 6px;"></i> Save Changes
+                        </button>
+                        <button onclick="deleteEditSlot()" class="btn-ai" style="flex: 1; background: #ef4444;">
+                            <i class="fa fa-trash" style="margin-right: 6px;"></i> Delete Slot
+                        </button>
+                        <button onclick="closeEditSlotModal()" class="btn-cancel" style="flex: 1;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW -->
+            <div id="view" class="section" style="display:none;">
+                <div class="section-box" style="text-align: center; padding: 40px 20px;">
+                    <i class="fa fa-calendar-check fa-4x" style="color:#74b9ff; margin-bottom: 20px;"></i>
+                    <h2 style="margin-bottom: 10px;">View Timetable</h2>
+                    <p style="color:#636e72; margin-bottom: 30px;">Select a class to load its precise schedule.</p>
+                    
+                    <div id="viewClassCards" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px;">
+                        <!-- Section buttons injected here dynamically -->
+                    </div>
+                    
+                    <!-- Dynamic Timetable Container -->
+                    <div id="timetableContainer" style="margin-top: 30px; text-align: left; display: none;">
+                        <h3 style="color:#2d3436; margin-bottom: 20px; text-align: center;" id="viewTimetableTitle"><i class="fa fa-calendar-alt" style="color:#b2bec3; margin-right: 10px;"></i>Class Timetable</h3>
+                        <div style="background: white; border: 1px solid #dfe6e9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow-x: auto;">
+                             <table style="width: 100%; min-width: 800px; margin-top: 0; box-shadow: none; border-radius: 0; border-collapse: collapse; text-align: center;">
+                                 <thead>
+                                     <tr id="timetableHeaderRow">
+                                         <!-- Headers injected here dynamically -->
+                                     </tr>
+                                 </thead>
+                                 <tbody id="timetableBody">
+                                     <!-- Body injected here dynamically -->
+                                 </tbody>
+                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- GENERATE (previously AI) -->
+            <div id="generate" class="section" style="display:none;">
+                <div class="section-box" style="background: linear-gradient(135deg, #fdfbfb, #f4f7fa); border: 1px solid #dfe6e9; padding: 50px 30px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.02);">
+                    <div style="background: #eaf3fc; width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; box-shadow: 0 4px 15px rgba(116, 185, 255, 0.2);">
+                        <i class="fa fa-wand-magic-sparkles fa-3x" style="color:#74b9ff;"></i>
+                    </div>
+                    <h2 style="font-size: 30px; color: #2d3436; margin-bottom: 15px;">Smart AI Generator</h2>
+                    <p style="color: #636e72; font-size: 16px; max-width: 550px; margin: 0 auto 35px auto; line-height: 1.6;">
+                        Automatically resolve clashes, adhere to room constraints, and seamlessly compile an active timetable optimized for maximum academic efficiency.
+                    </p>
+                    
+                    <!-- Schedule Configuration -->
+                    <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 25px; flex-wrap: wrap;">
+                        <div style="background: white; padding: 15px 25px; border-radius: 10px; border: 1px solid #dfe6e9; display: flex; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                            <i class="fa fa-calendar-day fa-lg" style="color:#55efc4; margin-right:12px;"></i> 
+                            <span style="font-weight: 500; color: #2d3436; margin-right: 10px;">Working Days:</span>
+                            <input type="number" id="constraintDays" value="5" min="1" max="7" style="width: 50px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                        </div>
+                        <div style="background: white; padding: 15px 25px; border-radius: 10px; border: 1px solid #dfe6e9; display: flex; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                            <i class="fa fa-clock fa-lg" style="color:#fab1a0; margin-right:12px;"></i> 
+                            <span style="font-weight: 500; color: #2d3436; margin-right: 10px;">Periods per Day:</span>
+                            <input type="number" id="constraintPeriods" value="7" min="1" max="10" style="width: 50px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                        </div>
+                    </div>
+
+                    <!-- Period Timing Configuration -->
+                    <div style="max-width: 600px; margin: 0 auto 25px auto; background: white; border: 1px solid #dfe6e9; border-radius: 12px; padding: 25px; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                        <h3 style="color:#2d3436; margin-bottom: 15px; font-size: 18px;"><i class="fa fa-clock" style="color:#fab1a0; margin-right:8px;"></i> Period Timing</h3>
+                        
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                            <div style="flex: 1; min-width: 180px;">
+                                <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px;">First Period Starts</label>
+                                <input type="time" id="periodStartTime" value="09:00" class="input-field" style="padding: 8px 12px;">
+                            </div>
+                            <div style="flex: 1; min-width: 180px;">
+                                <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px;">Period Duration (min)</label>
+                                <input type="number" id="periodDuration" value="50" min="20" max="120" class="input-field" style="padding: 8px 12px;">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+                            <div style="flex: 1; min-width: 180px;">
+                                <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px;">
+                                    <i class="fa fa-utensils" style="color: #f59e0b; margin-right: 6px;"></i>Lunch Break After Period
+                                </label>
+                                <select id="lunchAfterPeriod" class="input-field" style="padding: 8px 12px;">
+                                    <option value="0">No Lunch Break</option>
+                                    <option value="2">After Period 2</option>
+                                    <option value="3">After Period 3</option>
+                                    <option value="4" selected>After Period 4</option>
+                                    <option value="5">After Period 5</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 180px;">
+                                <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 5px;">Lunch Duration (min)</label>
+                                <input type="number" id="lunchDuration" value="30" min="10" max="90" class="input-field" style="padding: 8px 12px;">
+                            </div>
+                        </div>
+
+                        <div id="periodTimingPreview" style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;"><b>Preview Schedule:</b></p>
+                            <div id="timingPreviewContent" style="font-size: 13px; color: #475569; line-height: 1.8;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Rules Selection -->
+                    <div id="dynamicRulesContainer" style="max-width: 600px; margin: 0 auto 30px auto; background: white; border: 1px solid #dfe6e9; border-radius: 12px; padding: 25px; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                        <h3 style="color:#2d3436; margin-bottom: 15px; font-size: 18px;"><i class="fa fa-sliders" style="color:#b2bec3; margin-right:8px;"></i> Smart Rules Options</h3>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="ruleLabRooms" checked style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer;">
+                                <span><b>Smart Room Mapping</b> (Force assigning recognized 'Lab' subjects specifically to rooms labeled as 'Lab')</span>
+                            </label>
+                        </div>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="ruleNoConsecutive" checked style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer;">
+                                <span><b>Prevent Consecutive Classes</b> (Avoid scheduling the exact same subject for back-to-back periods)</span>
+                            </label>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; cursor: pointer; color: #475569;">
+                                <input type="checkbox" id="ruleOneSubjectPerDay" checked style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer;">
+                                <span><b>One Subject Per Day</b> (Each subject appears at most once per day per class — ensures variety)</span>
+                            </label>
+                        </div>
+                        <div id="additionalRulesContainer"></div>
+                    </div>
+
+                    <button onclick="generateAI()" class="btn-ai" style="padding: 16px 45px; font-size: 16px; border-radius: 30px; box-shadow: 0 6px 20px rgba(116, 185, 255, 0.4);"><i class="fa fa-play-circle" style="margin-right:10px;"></i> Start Generation Processor</button>
+                    <p id="aiResult" style="margin-top: 25px; font-weight: 600; color: #55efc4; font-size: 16px;"></p>
+                </div>
+            </div>
+
+            <!-- NOTIFICATION -->
+            <div id="notify" class="section" style="display:none;">
+                <h2>Notifications</h2>
+                <select id="notifyTarget" class="input-field" style="margin-bottom: 15px; width: 100%;">
+                    <option value="all">Every User (Teachers & Students)</option>
+                    <option value="teacher">Teachers Only</option>
+                    <option value="student">Students Only</option>
+                </select>
+                <textarea id="message" class="input-field" placeholder="Enter message text..."></textarea>
+                <button onclick="sendNotification()" class="btn-ai" style="margin-top: 10px;">Send Notification</button>
+            </div>
+
+            <!-- SUBJECTS -->
+            <div id="subjects" class="section" style="display:none;">
+                <h2>Manage Subject</h2>
+                <p><b>Features:</b> Add Subject, Edit Subject, Delete Subject</p>
+                <button onclick="openSubjectModal()" class="btn-ai" style="margin-bottom: 15px;">+ Add Subject</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subject Name</th>
+                            <th>Subject Code</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subjectList"></tbody>
+                </table>
+            </div>
+
+            <!-- CLASSES -->
+            <div id="classes" class="section" style="display:none;">
+                <h2>Manage Classes</h2>
+                <p><b>Features:</b> Course Name, Section, Student Strength, Assign Subject</p>
+                <button onclick="openClassModal()" class="btn-ai" style="margin-bottom: 15px;">+ Add Class</button>
+                <button class="btn-ai" style="margin-bottom: 15px; margin-left: 10px;" onclick="openAssignClassSubjectModal()">Assign Subject</button>
+                <div id="classAccordion"></div>
+                <!-- Original table kept for fallback/reference if needed, but we'll hide it -->
+                <table style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Section</th>
+                            <th>Strength</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="classList"></tbody>
+                </table>
+            </div>
+
+            <!-- ROOMS -->
+            <div id="rooms" class="section" style="display:none;">
+                <h2>Manage Room / Lab</h2>
+                <p><b>Features:</b> Room No, Capacity, Lab/Room</p>
+                <button onclick="openRoomModal()" class="btn-ai" style="margin-bottom: 15px;">+ Add Room/Lab</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Room No</th>
+                            <th>Capacity</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roomList"></tbody>
+                </table>
+            </div>
+
+            <!-- TEACHERS -->
+            <div id="teachers" class="section" style="display:none;">
+                <h2>Manage Teacher</h2>
+                <p><b>Features:</b> Add Teacher, Edit Teacher, Delete Teacher, Assign Subject</p>
+                <button onclick="openUserModal('teacher')" class="btn-ai" style="margin-bottom: 15px;">+ Add
+                    Teacher</button>
+                <button class="btn-ai" style="margin-bottom: 15px; margin-left: 10px;"
+                    onclick="openAssignSubjectModal()">Assign Subject</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherList"></tbody>
+                </table>
+
+                <h3 style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px;">Recent Teacher Logins</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherLoginList"></tbody>
+                </table>
+            </div>
+
+            <!-- STUDENTS -->
+            <div id="students" class="section" style="display:none;">
+                <h2>Students</h2>
+                <button onclick="openUserModal('student')" class="btn-ai" style="margin-bottom: 15px;">+ Add
+                    Student</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentList"></tbody>
+                </table>
+
+                <h3 style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px;">Recent Student Logins</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentLoginList"></tbody>
+                </table>
+            </div>
+
+            <!-- RULES SECTION -->
+            <div id="rules_section" class="section" style="display:none;">
+                <h2>Manage Rules</h2>
+                <p><b>Features:</b> Add Rule, Delete Rule. These rules appear in the generator.</p>
+                <div class="section-box">
+                    <input type="text" id="newRuleName" class="input-field" placeholder="Rule Name (e.g. No Friday Afternoon)">
+                    <textarea id="newRuleDesc" class="input-field" style="margin-top:10px" placeholder="Rule Description"></textarea>
+                    <button onclick="addRule()" class="btn-ai" style="margin-top:10px">+ Add New Rule</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rule Name</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rulesList"></tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- USER MODAL -->
+    <div id="userModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="modalTitle">Add User</h3>
+            <input type="hidden" id="userId">
+            <input type="hidden" id="userRole">
+            <input type="text" id="usernameInput" class="input-field" placeholder="Name/Username">
+            <input type="hidden" id="passwordInput" class="input-field">
+            <div style="margin-top: 15px;">
+                <button onclick="saveUser()" class="btn-ai">Save</button>
+                <button onclick="closeUserModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN SUBJECT MODAL -->
+    <div id="assignSubjectModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Assign Subject to Teacher</h3>
+            <select id="assignTeacherSelect" class="input-field"></select>
+            <select id="assignSubjectSelect" class="input-field" style="margin-top: 15px;"></select>
+            <p style="margin-top: 15px; margin-bottom: 5px; color: #64748b; font-size: 0.9rem; text-align: left;">Subject Choice Level (1=Neutral, 5=Top Choice)</p>
+            <select id="assignPrioritySelect" class="input-field">
+                <option value="1">1 (Neutral)</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5 (High Priority)</option>
+            </select>
+            <div style="margin-top: 20px;">
+                <button onclick="saveAssignSubject()" class="btn-ai">Save Link</button>
+                <button onclick="closeAssignSubjectModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN CLASS SUBJECT MODAL -->
+    <div id="assignClassSubjectModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Assign Subject to Class</h3>
+            <select id="assignClassSelect" class="input-field"></select>
+            <select id="assignClassSubjectSelect" class="input-field" style="margin-top: 15px;"></select>
+            <div style="margin-top: 20px;">
+                <button onclick="saveAssignClassSubject()" class="btn-ai">Save Link</button>
+                <button onclick="closeAssignClassSubjectModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBJECT MODAL -->
+    <div id="subjectModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="subjectModalTitle">Add Subject</h3>
+            <input type="hidden" id="subjectId">
+            <input type="text" id="subjectNameInput" class="input-field" placeholder="Subject Name">
+            <input type="text" id="subjectCodeInput" class="input-field" placeholder="Subject Code">
+            <div style="margin-top: 15px;">
+                <button onclick="saveSubject()" class="btn-ai">Save</button>
+                <button onclick="closeSubjectModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLASS MODAL -->
+    <div id="classModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="classModalTitle">Add Class</h3>
+            <input type="hidden" id="classId">
+            <select id="courseNameInput" class="input-field">
+                <option value="" disabled selected>Select Course / Semester</option>
+                <option value="BCA 1st Sem">BCA 1st Sem</option>
+                <option value="BCA 2nd Sem">BCA 2nd Sem</option>
+                <option value="BCA 3rd Sem">BCA 3rd Sem</option>
+                <option value="BCA 4th Sem">BCA 4th Sem</option>
+                <option value="BCA 5th Sem">BCA 5th Sem</option>
+                <option value="BCA 6th Sem">BCA 6th Sem</option>
+                <option value="MCA 1st Sem">MCA 1st Sem</option>
+                <option value="MCA 2nd Sem">MCA 2nd Sem</option>
+                <option value="MCA 3rd Sem">MCA 3rd Sem</option>
+                <option value="MCA 4th Sem">MCA 4th Sem</option>
+            </select>
+            <select id="sectionInput" class="input-field">
+                <option value="" disabled selected>Select Section</option>
+                <option value="A (General)">A (General)</option>
+                <option value="B (AIML & Cyber)">B (AIML & Cyber)</option>
+            </select>
+            <input type="number" id="strengthInput" class="input-field" placeholder="Student Strength">
+            <div style="margin-top: 15px;">
+                <button onclick="saveClass()" class="btn-ai">Save</button>
+                <button onclick="closeClassModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROOM MODAL -->
+    <div id="roomModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="roomModalTitle">Add Room / Lab</h3>
+            <input type="hidden" id="roomId">
+            <input type="text" id="roomNoInput" class="input-field" placeholder="Room No">
+            <input type="number" id="capacityInput" class="input-field" placeholder="Capacity">
+            <input type="text" id="roomTypeInput" class="input-field" placeholder="Type (e.g. Lab or Room)">
+            <div style="margin-top: 15px;">
+                <button onclick="saveRoom()" class="btn-ai">Save</button>
+                <button onclick="closeRoomModal()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}?v=2.1"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+        // Close sidebar on nav click (mobile)
+        document.querySelectorAll('.sidebar a').forEach(a => {
+            a.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    document.querySelector('.sidebar').classList.remove('open');
+                    document.querySelector('.sidebar-overlay').classList.remove('active');
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>

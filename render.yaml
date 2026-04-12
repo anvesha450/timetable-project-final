@@ -1,0 +1,21 @@
+databases:
+  - name: timetable-db
+    plan: free
+    databaseName: timetable
+    user: timetable_user
+
+services:
+  - type: web
+    name: timetable-ai
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: timetable-db
+          property: connectionString

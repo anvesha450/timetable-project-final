@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+*.png
+*.pdf
+scratch/
+data/
+debug_*.py
+check_*.py
+add_practicals.py
+insert_*.py
+extract_images.py
+extracted_classes_rooms.json
+classes.txt

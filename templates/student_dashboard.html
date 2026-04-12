@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Student Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v=2.1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa fa-bars"></i></button>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <h2><i class="fa-solid fa-user-graduate"></i> Student</h2>
+
+            <a onclick="showSection('today_classes')"><i class="fa fa-calendar-day"></i> Today classes / Upcoming</a>
+            <a onclick="showSection('announcements')"><i class="fa fa-bullhorn"></i> Notifications</a>
+            <a onclick="showSection('my_timetable')"><i class="fa fa-table"></i> My timetable</a>
+            <a onclick="showSection('assignments')"><i class="fa fa-tasks"></i> Assignment / Event</a>
+            <a onclick="showSection('profile')"><i class="fa fa-user"></i> Profile</a>
+
+            <hr>
+            <a onclick="logout()" class="logout"><i class="fa fa-right-from-bracket"></i> Logout</a>
+        </div>
+
+        <!-- MAIN -->
+        <div class="main">
+
+            <!-- TODAY CLASSES / UPCOMING PERIODS -->
+            <div id="today_classes" class="section">
+                <h2>Today classes / Upcoming Periods</h2>
+                <div class="cards feature-grid">
+                    <div class="card interactive-card student-card" onclick="alert('Subject clicked!')">
+                        <i class="fa fa-book fa-2x"></i>
+                        <h3>Subject</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('Teacher Schedule clicked!')">
+                        <i class="fa fa-person-chalkboard fa-2x"></i>
+                        <h3>Teacher</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('Room Allocations clicked!')">
+                        <i class="fa fa-door-open fa-2x"></i>
+                        <h3>Room</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('Timetable clicked!')">
+                        <i class="fa fa-clock fa-2x"></i>
+                        <h3>Time</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTIFICATIONS -->
+            <div id="announcements" class="section" style="display:none;">
+                <h2>Notifications / Announcements</h2>
+                <div class="section-box">
+                    <div class="notification-item">
+                        <i class="fa fa-info-circle" style="color:#0984e3; margin-right: 10px;"></i>
+                        No new updates today. Have a great day!
+                    </div>
+                </div>
+            </div>
+
+            <!-- MY TIMETABLE -->
+            <div id="my_timetable" class="section" style="display:none;">
+                <h2>Class Timetable</h2>
+                <div class="section-box" style="margin-bottom: 25px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display:block; margin-bottom:5px; color:#64748b;">Select Semester</label>
+                        <select id="studentCourseSelect" class="input-field" onchange="updateSectionDropdown()"></select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display:block; margin-bottom:5px; color:#64748b;">Select Section</label>
+                        <select id="studentSectionSelect" class="input-field"></select>
+                    </div>
+                    <button onclick="viewStudentTimetable()" class="btn-ai" style="padding: 12px 25px;"><i class="fa fa-search"></i> View Timetable</button>
+                </div>
+
+                <div id="studentTtContainer" class="section-box" style="display:none; overflow-x: auto;">
+                    <h3 id="studentTtTitle" style="margin-bottom: 20px; color:#2d3436;">Timetable</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr id="studentTtHead"></tr>
+                        </thead>
+                        <tbody id="studentTtBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ASSIGNMENT / EVENT -->
+            <div id="assignments" class="section" style="display:none;">
+                <h2>Assignment / Event</h2>
+                <div class="cards feature-grid">
+                    <div class="card interactive-card student-card" onclick="alert('View Assignment Deadline')">
+                        <i class="fa fa-calendar-xmark fa-2x"></i>
+                        <h3>Assignment deadline</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('View Event Schedule')">
+                        <i class="fa fa-calendar-check fa-2x"></i>
+                        <h3>Event schedule</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('View Exam Date')">
+                        <i class="fa fa-pen-to-square fa-2x"></i>
+                        <h3>Exam date</h3>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;">Active Pending Assignments
+                </h3>
+                <div id="studentAssignmentList" class="section-box" style="margin-top: 15px;">
+                    <p>Loading active assignments...</p>
+                </div>
+            </div>
+
+            <!-- PROFILE -->
+            <div id="profile" class="section" style="display:none;">
+                <h2>Profile</h2>
+                <div class="cards feature-grid">
+                    <div class="card interactive-card student-card" onclick="alert('View Personal Info')">
+                        <i class="fa fa-id-badge fa-2x"></i>
+                        <h3>View Personal Info</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('Change Password Dialog')">
+                        <i class="fa fa-lock fa-2x"></i>
+                        <h3>Change Password</h3>
+                    </div>
+                    <div class="card interactive-card student-card" onclick="alert('Update Contact Info Dialog')">
+                        <i class="fa fa-address-book fa-2x"></i>
+                        <h3>Update Contact Info</h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.onload = async function () {
+            try {
+                const res = await fetch("/api/notifications/student");
+                const data = await res.json();
+                if (data.notifications && data.notifications.length > 0) {
+                    document.getElementById("announcements").querySelector(".section-box").innerHTML =
+                        data.notifications.map(n => `
+                            <div class="notification-item">
+                                <i class="fa fa-info-circle" style="color:#00b894; margin-right: 10px;"></i>
+                                <div><b>${n.time}</b><br>${n.message}</div>
+                            </div>
+                        `).join("");
+                }
+            } catch (e) { console.error("Error loading notifications"); }
+
+            loadStudentAssignments();
+            loadStudentData();
+        };
+
+        let allGlobalClasses = [];
+
+        async function loadStudentData() {
+            const res = await fetch("/admin-data");
+            const data = await res.json();
+            allGlobalClasses = data.classes;
+            
+            // Unique Course Names (Semesters)
+            const courses = [...new Set(allGlobalClasses.map(c => c.course_name))];
+            let html = `<option value="">-- Choose Semester --</option>`;
+            courses.forEach(c => html += `<option value="${c}">${c}</option>`);
+            document.getElementById("studentCourseSelect").innerHTML = html;
+        }
+
+        function updateSectionDropdown() {
+            const course = document.getElementById("studentCourseSelect").value;
+            const sections = allGlobalClasses.filter(c => c.course_name === course);
+            let html = `<option value="">-- Choose Section --</option>`;
+            sections.forEach(s => html += `<option value="${s.id}">${s.section}</option>`);
+            document.getElementById("studentSectionSelect").innerHTML = html;
+        }
+
+        async function viewStudentTimetable() {
+            const classId = document.getElementById("studentSectionSelect").value;
+            if (!classId) return alert("Please select both semester and section");
+
+            const res = await fetch("/api/timetable");
+            const data = await res.json();
+            const classTT = data.timetable.filter(t => t.class_id == classId);
+            
+            if (classTT.length === 0) {
+                alert("No timetable generated for this section yet.");
+                document.getElementById("studentTtContainer").style.display = "none";
+                return;
+            }
+
+            const className = document.getElementById("studentSectionSelect").options[document.getElementById("studentSectionSelect").selectedIndex].text;
+            const semesterName = document.getElementById("studentCourseSelect").value;
+            document.getElementById("studentTtTitle").innerText = `${semesterName} - Section ${className}`;
+            
+            const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const periods = [...new Set(classTT.map(t => t.period))].sort((a,b) => a-b);
+            
+            let head = `<th style="background:#f4f7fa; padding: 15px;">Period / Day</th>`;
+            days.forEach(d => head += `<th style="background:#f4f7fa; padding: 15px;">${d}</th>`);
+            document.getElementById("studentTtHead").innerHTML = head;
+
+            let body = "";
+            periods.forEach(p => {
+                body += `<tr><td style="font-weight:600; color:#74b9ff; padding: 15px; border-bottom: 1px solid #f1f5f9;">Period ${p}</td>`;
+                days.forEach(d => {
+                    const slot = classTT.find(t => t.day === d && t.period === p);
+                    if (slot) {
+                        body += `<td style="padding: 10px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="background:#f0f7ff; padding:10px; border-radius:8px; border-left: 4px solid #3b82f6;">
+                                <b>${slot.subject_name}</b><br>
+                                <small>${slot.teacher_name}</small><br>
+                                <small><i class="fa fa-map-marker-alt"></i> ${slot.room_no}</small>
+                            </div>
+                        </td>`;
+                    } else {
+                        body += `<td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color:#ccc;">-</td>`;
+                    }
+                });
+                body += `</tr>`;
+            });
+            document.getElementById("studentTtBody").innerHTML = body;
+            document.getElementById("studentTtContainer").style.display = "block";
+        }
+
+        async function loadStudentAssignments() {
+            try {
+                const resAsg = await fetch("/api/assignment");
+                const dataAsg = await resAsg.json();
+                if (dataAsg.assignments && dataAsg.assignments.length > 0) {
+                    document.getElementById("studentAssignmentList").innerHTML = dataAsg.assignments.map(a => `
+                        <div class="notification-item" style="border-left-color: #e17055;">
+                            <i class="fa fa-thumbtack" style="color:#e17055; margin-right: 10px;"></i>
+                            <div><b>${a.title}</b><br><small style="color:red; font-weight:bold;">Deadline: ${a.deadline}</small></div>
+                        </div>
+                    `).join("");
+                } else {
+                    document.getElementById("studentAssignmentList").innerHTML = "<p>You have no active assignments right now!</p>";
+                }
+            } catch (e) { console.error("Error loading assignments"); }
+        }
+
+        function showSection(id) {
+            document.querySelectorAll(".section").forEach(sec => {
+                sec.style.display = "none";
+            });
+            document.getElementById(id).style.display = "block";
+        }
+
+        function logout() {
+            window.location.href = "/";
+        }
+    </script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+        document.querySelectorAll('.sidebar a').forEach(a => {
+            a.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    document.querySelector('.sidebar').classList.remove('open');
+                    document.querySelector('.sidebar-overlay').classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

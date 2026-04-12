@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Teacher Timetable</title>
+    <link rel="stylesheet" href="teacherdash.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fa-solid fa-book-open"></i> Timetable</h3>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="#" class="active" onclick="showSection('dashboard')"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+                <a href="#" onclick="showSection('timetable')"><i class="fa-solid fa-calendar-days"></i> My Timetable</a>
+                <a href="#" onclick="showSection('ai-generator')"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Generator</a>
+                <a href="#" onclick="showSection('profile')"><i class="fa-solid fa-user"></i> Profile</a>
+                <a href="#" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="toggle-btn"><i class="fa-solid fa-bars"></i></div>
+                <h2>Dashboard</h2>
+                <div class="user-profile-mini">
+                    <img src="https://ui-avatars.com/api/?name=John+Doe&background=0D8ABC&color=fff" alt="User">
+                    <span> Dr. Rajeshwari</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section">
+                <!-- Stats Cards -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon blue"><i class="fa-solid fa-chalkboard-user"></i></div>
+                        <div class="card-info">
+                            <h3>Today's Classes</h3>
+                            <p>4 Periods</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon green"><i class="fa-solid fa-clock"></i></div>
+                        <div class="card-info">
+                            <h3>Upcoming</h3>
+                            <p>Math 101 (10:00 AM)</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon orange"><i class="fa-solid fa-bell"></i></div>
+                        <div class="card-info">
+                            <h3>Notifications</h3>
+                            <p>3 New Alerts</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links & Notifications -->
+                <div class="dashboard-grid">
+                    <div class="card full-width">
+                        <h4><i class="fa-solid fa-bullhorn"></i> Recent Announcements</h4>
+                        <ul class="notification-list">
+                            <li><span class="dot red"></span> Faculty meeting rescheduled to Friday.</li>
+                            <li><span class="dot blue"></span> New timetable for Semester 2 is live.</li>
+                            <li><span class="dot green"></span> Exam schedule for Grade 10 released.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Generator Section (Hidden by default) -->
+            <div id="ai-generator" class="content-section" style="display: none;">
+                <div class="card full-width">
+                    <h4>AI Timetable Generator</h4>
+                    <p>Automatically generate an optimized schedule based on teacher availability and room constraints.</p>
+                    <button class="btn-primary" onclick="generateAI()">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Timetable
+                    </button>
+                    <div id="ai-status" class="ai-status"></div>
+                </div>
+            </div>
+
+            <!-- Timetable Section (Hidden by default) -->
+            <div id="timetable" class="content-section" style="display: none;">
+                <div class="card full-width">
+                    <div class="card-header-flex">
+                        <h4>Weekly Schedule</h4>
+                        <select class="form-select">
+                            <option>Week 1</option>
+                            <option>Week 2</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="timetable-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Monday</th>
+                                    <th>Tuesday</th>
+                                    <th>Wednesday</th>
+                                    <th>Thursday</th>
+                                    <th>Friday</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>09:00 - 10:00</td>
+                                    <td>Math 101<br><small>Room 101</small></td>
+                                    <td>Physics<br><small>Lab 2</small></td>
+                                    <td>Math 101<br><small>Room 101</small></td>
+                                    <td>Free</td>
+                                    <td>Math 102<br><small>Room 102</small></td>
+                                </tr>
+                                <tr>
+                                    <td>10:00 - 11:00</td>
+                                    <td>Math 102<br><small>Room 102</small></td>
+                                    <td>Math 101<br><small>Room 101</small></td>
+                                    <td>Physics<br><small>Lab 2</small></td>
+                                    <td>Math 102<br><small>Room 102</small></td>
+                                    <td>Free</td>
+                                </tr>
+                                <tr>
+                                    <td>09:00 - 10:00</td>
+                                    <td>10:00 - 11:00</td>
+                                    <td>12:30 - 01:30</td>
+                                    <td>01:30 - 02:30</td>
+                                    <td>Free</td>
+                                    <td>Free</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Section (Hidden by default) -->
+            <div id="profile" class="content-section" style="display: none;">
+                <div class="card full-width">
+                    <h4>My Profile</h4>
+                    <form class="profile-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" value="John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="john.doe@school.edu">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Department</label>
+                            <input type="text" value="Mathematics" disabled>
+                        </div>
+                        <button class="btn-primary">Update Profile</button>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="teacher-dashboard.js"></script>
+    <button onclick="window.location.href='index.html'">Logout</button>
+</body>
+</html>
