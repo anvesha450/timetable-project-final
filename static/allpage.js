@@ -74,16 +74,19 @@ async function resetPassword(btn) {
 // Login API
 async function loginUser(btn) {
 
-    btn.disabled = true;  // 🔥 PREVENT DOUBLE CLICK
-
     const username = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
     if (!username || !password) {
         alert("Please enter both username and password");
-        btn.disabled = false;
         return;
     }
+
+    // Show loading state
+    btn.disabled = true;
+    const originalText = btn.innerText;
+    btn.innerText = "Logging in...";
+    btn.style.opacity = "0.7";
 
     try {
         const response = await fetch("/login", {
@@ -103,7 +106,9 @@ async function loginUser(btn) {
         if (data.status === "success" || data.status === "new user created") {
             localStorage.setItem("username", username);
             if (data.status === "new user created") {
-                alert("New user created ✅");
+                btn.innerText = "Account Created! Redirecting...";
+            } else {
+                btn.innerText = "Success! Redirecting...";
             }
             if (data.role === "admin") {
                 window.location.href = "/dashboard";
@@ -114,21 +119,22 @@ async function loginUser(btn) {
             } else {
                 window.location.href = "/dashboard";
             }
+            return; // Don't re-enable button during redirect
         } else if (data.status === "wrong password") {
             alert("Wrong Password ❌");
-            btn.disabled = false;
         } else if (data.status === "wrong role") {
             alert("Access Denied: You are not authorized for this portal ❌");
-            btn.disabled = false;
         } else if (data.status === "not found") {
             alert("Account not found ❌\n\n" + (data.message || "Please contact admin to get registered."));
-            btn.disabled = false;
         } else {
             alert("Login failed: " + (data.message || data.status));
-            btn.disabled = false;
         }
     } catch (err) {
-        alert("Server connection error. Please try again.");
-        btn.disabled = false;
+        alert("Server is waking up... Please try again in a few seconds.");
     }
+
+    // Always re-enable button on failure
+    btn.disabled = false;
+    btn.innerText = originalText;
+    btn.style.opacity = "1";
 }

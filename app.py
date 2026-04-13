@@ -264,11 +264,11 @@ def login():
         else:
             return jsonify({"status": "wrong password"})
     else:
-        # For teacher and student: must be pre-registered by admin
-        if role in ("teacher", "student"):
-            return jsonify({"status": "not found", "message": "Account not found. Please contact admin to register."})
+        # Teachers must be pre-registered by admin (they have assigned subjects/timetables)
+        if role == "teacher":
+            return jsonify({"status": "not found", "message": "Teacher account not found. Please contact admin to get registered."})
         
-        # For admin: allow self-registration
+        # Students and admins can self-register
         add_user(username, password, role)
         return jsonify({"status": "new user created", "role": role})
         
