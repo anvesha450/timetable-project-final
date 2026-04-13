@@ -79,39 +79,56 @@ async function loginUser(btn) {
     const username = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
-    const response = await fetch("/login", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            username: username,
-            password: password,
-            role: selectedRole
-        })
-    });
-
-    const data = await response.json();
-
-    if (data.status === "success" || data.status === "new user created") {
-        localStorage.setItem("username", username);
-        if (data.status === "new user created") {
-            alert("New user created ✅");
-        }
-        if (data.role === "admin") {
-            window.location.href = "/dashboard";
-        } else if (data.role === "teacher") {
-            window.location.href = "/teacher_dashboard";
-        } else if (data.role === "student") {
-            window.location.href = "/student_dashboard";
-        } else {
-            window.location.href = "/dashboard";
-        }
-    } else if (data.status === "wrong password") {
-        alert("Wrong Password ❌");
+    if (!username || !password) {
+        alert("Please enter both username and password");
         btn.disabled = false;
-    } else if (data.status === "wrong role") {
-        alert("Access Denied: You are not authorized for this portal ❌");
+        return;
+    }
+
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password,
+                role: selectedRole
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success" || data.status === "new user created") {
+            localStorage.setItem("username", username);
+            if (data.status === "new user created") {
+                alert("New user created ✅");
+            }
+            if (data.role === "admin") {
+                window.location.href = "/dashboard";
+            } else if (data.role === "teacher") {
+                window.location.href = "/teacher_dashboard";
+            } else if (data.role === "student") {
+                window.location.href = "/student_dashboard";
+            } else {
+                window.location.href = "/dashboard";
+            }
+        } else if (data.status === "wrong password") {
+            alert("Wrong Password ❌");
+            btn.disabled = false;
+        } else if (data.status === "wrong role") {
+            alert("Access Denied: You are not authorized for this portal ❌");
+            btn.disabled = false;
+        } else if (data.status === "not found") {
+            alert("Account not found ❌\n\n" + (data.message || "Please contact admin to get registered."));
+            btn.disabled = false;
+        } else {
+            alert("Login failed: " + (data.message || data.status));
+            btn.disabled = false;
+        }
+    } catch (err) {
+        alert("Server connection error. Please try again.");
         btn.disabled = false;
     }
 }

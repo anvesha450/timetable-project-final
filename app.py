@@ -264,7 +264,11 @@ def login():
         else:
             return jsonify({"status": "wrong password"})
     else:
-        # ✅ CREATE USER ONLY (NO LOGIN HISTORY HERE)
+        # For teacher and student: must be pre-registered by admin
+        if role in ("teacher", "student"):
+            return jsonify({"status": "not found", "message": "Account not found. Please contact admin to register."})
+        
+        # For admin: allow self-registration
         add_user(username, password, role)
         return jsonify({"status": "new user created", "role": role})
         
@@ -947,6 +951,34 @@ def api_get_detailed_timetable():
     } for row in rows]
 
     return jsonify({"status": "success", "timetable": timetable})
+
+@app.route("/api/check_db")
+def api_check_db():
+    """Debug endpoint: check what data exists in the database"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    result = {"database": "PostgreSQL" if USE_POSTGRES else "SQLite"}
+    
+    tables = ["users", "subjects", "classes", "rooms", "timetables", 
+              "teacher_subjects", "class_subjects"]
+    for table in tables:
+        try:
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            result[table] = cursor.fetchone()[0]
+        except Exception as e:
+            result[table] = f"ERROR: {e}"
+            conn.rollback()
+    
+    # Show some sample users for debugging
+    try:
+        cursor.execute("SELECT id, username, role FROM users LIMIT 10")
+        result["sample_users"] = [{"id": r[0], "username": r[1], "role": r[2]} for r in cursor.fetchall()]
+    except Exception:
+        conn.rollback()
+    
+    conn.close()
+    return jsonify(result)
 
 # Always create tables on import (needed for gunicorn)
 create_user_table()

@@ -23,22 +23,22 @@ if PG_URL.startswith("postgres://"):
 SQLITE_PATH = os.path.join("data", "timetable.db")
 
 if not PG_URL:
-    print("❌ No DATABASE_URL set. Provide it as argument or env var.")
+    print("[ERROR] No DATABASE_URL set. Provide it as argument or env var.")
     sys.exit(1)
 
 if not os.path.exists(SQLITE_PATH):
-    print(f"❌ SQLite database not found at {SQLITE_PATH}")
+    print(f"[ERROR] SQLite database not found at {SQLITE_PATH}")
     sys.exit(1)
 
-print(f"📦 Source: {SQLITE_PATH}")
-print(f"🐘 Target: {PG_URL[:50]}...")
+print(f"Source: {SQLITE_PATH}")
+print(f"Target: {PG_URL[:50]}...")
 print()
 
 # Connect to both databases
 sqlite_conn = sqlite3.connect(SQLITE_PATH)
 sqlite_cur = sqlite_conn.cursor()
 
-pg_conn = psycopg2.connect(PG_URL)
+pg_conn = psycopg2.connect(PG_URL, sslmode="require")
 pg_cur = pg_conn.cursor()
 
 # Tables to migrate in order (respecting dependencies)
@@ -115,7 +115,7 @@ for table in TABLES:
         sqlite_cur.execute(f"SELECT {cols} FROM {name}")
         rows = sqlite_cur.fetchall()
     except sqlite3.OperationalError as e:
-        print(f"⚠️  Skipping {name}: {e}")
+        print(f"  [SKIP] {name}: {e}")
         continue
     
     if not rows:
@@ -131,7 +131,7 @@ for table in TABLES:
             pg_cur.execute(table["insert"], row)
             count += 1
         except Exception as e:
-            print(f"  ⚠️  Error inserting into {name}: {e}")
+            print(f"  [ERR] Error inserting into {name}: {e}")
             pg_conn.rollback()
             continue
     
@@ -145,7 +145,7 @@ for table in TABLES:
         pass
     
     pg_conn.commit()
-    print(f"  ✅ {name}: {count} rows migrated")
+    print(f"  [OK] {name}: {count} rows migrated")
     total_migrated += count
 
 pg_conn.commit()
@@ -153,5 +153,5 @@ pg_conn.commit()
 sqlite_conn.close()
 pg_conn.close()
 
-print(f"\n🎉 Migration complete! {total_migrated} total rows migrated.")
-print("You can now deploy your app and it will use PostgreSQL.")
+print(f"\nMigration complete! {total_migrated} total rows migrated.")
+print("Your app on Render now has all the data.")
