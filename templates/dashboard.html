@@ -28,6 +28,9 @@
             <a onclick="showSection('notify')"><i class="fa fa-bell"></i> Notifications</a>
             <a onclick="showSection('students')"><i class="fa fa-user-graduate"></i> Manage Student</a>
             <a onclick="showSection('rules_section')"><i class="fa fa-gavel"></i> Manage Rules</a>
+            <a onclick="showSection('calendar_section')"><i class="fa fa-calendar-alt"></i> Academic Calendar</a>
+            <a onclick="showSection('noc_admin_section')"><i class="fa fa-file-contract"></i> NOC Management</a>
+            <a onclick="showSection('noc_admin_section')"><i class="fa fa-file-contract"></i> NOC Management</a>
 
             <hr>
 
@@ -423,6 +426,93 @@
                     </thead>
                     <tbody id="rulesList"></tbody>
                 </table>
+            </div>
+
+            <!-- ACADEMIC CALENDAR SECTION -->
+            <div id="calendar_section" class="section" style="display:none;">
+                <div class="section-box" style="padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+                        
+                        <!-- LEFT: Links & Image -->
+                        <div style="flex: 1; min-width: 300px;">
+                            <h3 style="margin-bottom: 20px; color: #1e293b;"><i class="fa fa-link" style="color:#3b82f6; margin-right:8px;"></i> Calendar Links</h3>
+                            
+                            <label style="font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">PDF / Website URL</label>
+                            <input type="text" id="calendarUrlInput" class="input-field" placeholder="https://..." style="margin-bottom: 15px;">
+                            
+                            <label style="font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">Calendar Image URL (e.g., JPEG/PNG)</label>
+                            <input type="text" id="calendarImageInput" class="input-field" placeholder="https://..." style="margin-bottom: 20px;">
+                            
+                            <button onclick="saveCalendarSettings()" class="btn-ai" style="width: 100%; background: #3b82f6; padding: 12px;">
+                                <i class="fa fa-save"></i> Save Links
+                            </button>
+                            <p id="calendarStatus" style="margin-top: 10px; font-weight: 600; display: none;"></p>
+                        </div>
+
+                        <!-- RIGHT: Add Event -->
+                        <div style="flex: 1; min-width: 300px;">
+                            <h3 style="margin-bottom: 20px; color: #1e293b;"><i class="fa fa-calendar-plus" style="color:#10b981; margin-right:8px;"></i> Add Academic Event</h3>
+                            <div style="background: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                <input type="date" id="eventDate" class="input-field" style="margin-bottom: 10px;">
+                                <input type="text" id="eventTitle" class="input-field" placeholder="Event Title (e.g., Mid-Term Exam)" style="margin-bottom: 10px;">
+                                <textarea id="eventDesc" class="input-field" placeholder="Description (Optional)" style="margin-bottom: 10px; height: 60px;"></textarea>
+                                <select id="eventType" class="input-field">
+                                    <option value="Event">Event</option>
+                                    <option value="Holiday">Holiday</option>
+                                    <option value="Exam">Exam</option>
+                                </select>
+                                <button onclick="addCalendarEvent()" class="btn-ai" style="width:100%; margin-top: 15px; background: #10b981;">
+                                    <i class="fa fa-plus-circle"></i> Add to Calendar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BOTTOM: Event List -->
+                    <div style="margin-top: 40px;">
+                        <h3 style="margin-bottom: 15px; color: #1e293b;"><i class="fa fa-list" style="color:#6366f1; margin-right:8px;"></i> Scheduled Events</h3>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f1f5f9;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Date</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Title</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Type</th>
+                                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e2e8f0;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="eventListTable">
+                                    <tr><td colspan="4" style="text-align:center; padding: 20px; color: #94a3b8;">Loading events...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOC MANAGEMENT -->
+            <div id="noc_admin_section" class="section" style="display:none;">
+                <div class="section-box">
+                    <h2 style="margin-bottom: 20px;"><i class="fa fa-file-contract" style="color:#6c5ce7; margin-right:10px;"></i> Student NOC Requests</h2>
+                    <p style="color:#64748b; margin-bottom: 20px;">Review Certificates submitted by students for external training or jobs.</p>
+                    
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                                    <th style="padding:15px; text-align:left;">Student</th>
+                                    <th style="padding:15px; text-align:left;">Submitted</th>
+                                    <th style="padding:15px; text-align:left;">Details</th>
+                                    <th style="padding:15px; text-align:left;">Status</th>
+                                    <th style="padding:15px; text-align:center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nocAdminTableBody">
+                                <tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Loading requests...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
         </div>

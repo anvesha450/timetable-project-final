@@ -17,11 +17,13 @@
         <div class="sidebar">
             <h2><i class="fa-solid fa-user-graduate"></i> Student</h2>
 
-            <a onclick="showSection('today_classes')"><i class="fa fa-calendar-day"></i> Today classes / Upcoming</a>
+            <a onclick="showSection('today_classes')"><i class="fa fa-calendar-day"></i> Today classes</a>
+            <a onclick="viewAcademicCalendar()"><i class="fa fa-calendar-alt"></i> Academic Calendar</a>
             <a onclick="showSection('announcements')"><i class="fa fa-bullhorn"></i> Notifications</a>
             <a onclick="showSection('my_timetable')"><i class="fa fa-table"></i> My timetable</a>
             <a onclick="showSection('assignments')"><i class="fa fa-tasks"></i> Assignment / Event</a>
             <a onclick="showSection('profile')"><i class="fa fa-user"></i> Profile</a>
+            <a onclick="showSection('noc_section')"><i class="fa fa-file-signature"></i> NOC Portal</a>
 
             <hr>
             <a onclick="logout()" class="logout"><i class="fa fa-right-from-bracket"></i> Logout</a>
@@ -32,23 +34,37 @@
 
             <!-- TODAY CLASSES / UPCOMING PERIODS -->
             <div id="today_classes" class="section">
-                <h2>Today classes / Upcoming Periods</h2>
-                <div class="cards feature-grid">
-                    <div class="card interactive-card student-card" onclick="alert('Subject clicked!')">
-                        <i class="fa fa-book fa-2x"></i>
-                        <h3>Subject</h3>
+                <h2>Quick Access</h2>
+                <div class="cards feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <div class="card interactive-card student-card" onclick="viewAcademicCalendar()">
+                        <i class="fa fa-calendar-alt fa-3x" style="color: #6c5ce7; margin-bottom: 10px;"></i>
+                        <h3 style="margin-top: 5px;">Academic Calendar</h3>
+                        <p style="font-size: 13px; color: #636e72;">View PDF & Event Schedule</p>
                     </div>
-                    <div class="card interactive-card student-card" onclick="alert('Teacher Schedule clicked!')">
-                        <i class="fa fa-person-chalkboard fa-2x"></i>
-                        <h3>Teacher</h3>
+                    <div class="card" style="text-align: left; background: white; border: 1px solid #e2e8f0; cursor: default;">
+                        <h3 style="margin-bottom: 10px; color: #6c5ce7; border-bottom: 1px solid #eee; padding-bottom: 5px;"><i class="fa fa-bullhorn"></i> Upcoming Events</h3>
+                        <div id="calendarEventsList" style="max-height: 120px; overflow-y: auto;">
+                            <p style="color: #94a3b8; font-size: 13px;">Loading events...</p>
+                        </div>
                     </div>
-                    <div class="card interactive-card student-card" onclick="alert('Room Allocations clicked!')">
-                        <i class="fa fa-door-open fa-2x"></i>
-                        <h3>Room</h3>
+                </div>
+            </div>
+
+            <div id="calendarDetailModal" class="modal" style="display:none;">
+                <div class="modal-content" style="max-width: 800px; padding: 0; border-radius: 12px; overflow: hidden;">
+                    <div style="background: #6c5ce7; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin:0;"><i class="fa fa-calendar-check"></i> Academic Calendar</h3>
+                        <button onclick="closeCalendarModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
                     </div>
-                    <div class="card interactive-card student-card" onclick="alert('Timetable clicked!')">
-                        <i class="fa fa-clock fa-2x"></i>
-                        <h3>Time</h3>
+                    <div style="padding: 20px; max-height: 80vh; overflow-y: auto;">
+                        <div id="calendarImgContainer" style="text-align: center; margin-bottom: 20px;"></div>
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <a id="calendarPdfLink" href="#" target="_blank" class="btn-ai" style="background:#6c5ce7; display:none;">
+                                <i class="fa fa-file-pdf"></i> View Official PDF
+                            </a>
+                        </div>
+                        <h3>Academic Year Schedule</h3>
+                        <div id="calendarFullEventsTable" style="margin-top: 15px;"></div>
                     </div>
                 </div>
             </div>
@@ -130,6 +146,34 @@
                     <div class="card interactive-card student-card" onclick="alert('Update Contact Info Dialog')">
                         <i class="fa fa-address-book fa-2x"></i>
                         <h3>Update Contact Info</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOC PORTAL -->
+            <div id="noc_section" class="section" style="display:none;">
+                <h2>No Objection Certificate (NOC)</h2>
+                <div class="section-box" style="margin-bottom: 25px;">
+                    <h3><i class="fa fa-plus-circle"></i> Submit New NOC Request</h3>
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">If you are working or attending external training, please submit your details and NOC letter here for record keeping.</p>
+                    
+                    <form id="nocForm" onsubmit="submitNoc(event)">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">Details / Reason</label>
+                            <textarea id="nocDetails" class="input-field" style="height: 100px;" placeholder="Describe your training/job details..." required></textarea>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display:block; margin-bottom:5px; font-weight:600;">NOC Letter URL (or Image link)</label>
+                            <input type="text" id="nocLetterUrl" class="input-field" placeholder="Paste link to your NOC document (e.g. Google Drive/Imgur link)" required>
+                        </div>
+                        <button type="submit" class="btn-ai" style="width: 100%;"><i class="fa fa-paper-plane"></i> Submit Request</button>
+                    </form>
+                </div>
+
+                <div class="section-box">
+                    <h3><i class="fa fa-clock-rotate-left"></i> Your Previous Requests</h3>
+                    <div id="nocStatusList" style="margin-top: 15px;">
+                        <p style="text-align:center; color:#94a3b8;">Loading history...</p>
                     </div>
                 </div>
             </div>
@@ -251,8 +295,103 @@
             document.getElementById(id).style.display = "block";
         }
 
-        function logout() {
-            window.location.href = "/";
+        async function viewAcademicCalendar() {
+            document.getElementById("calendarDetailModal").style.display = "block";
+            loadCalendarData();
+        }
+
+        function closeCalendarModal() {
+            document.getElementById("calendarDetailModal").style.display = "none";
+        }
+
+        async function loadCalendarData() {
+            try {
+                const [setRes, evRes] = await Promise.all([fetch("/api/settings"), fetch("/api/events")]);
+                const settings = await setRes.json();
+                const events = (await evRes.json()).events || [];
+
+                const pdfLink = document.getElementById("calendarPdfLink");
+                if (settings.academic_calendar) {
+                    pdfLink.href = settings.academic_calendar;
+                    pdfLink.style.display = "inline-block";
+                }
+
+                const imgContainer = document.getElementById("calendarImgContainer");
+                if (settings.academic_calendar_image) {
+                    imgContainer.innerHTML = `<img src="${settings.academic_calendar_image}" style="max-width: 100%; border-radius: 8px;">`;
+                } else {
+                    imgContainer.innerHTML = "<p style='color:#94a3b8;'>No calendar image available.</p>";
+                }
+
+                const upcoming = events.filter(e => e.date >= new Date().toISOString().split('T')[0]).slice(0, 5);
+                document.getElementById("calendarEventsList").innerHTML = upcoming.length > 0 ? upcoming.map(e => `
+                    <div style="margin-bottom: 8px; font-size: 13px;">
+                        <span style="color: #6c5ce7; font-weight: bold;">${e.date}:</span> ${e.title}
+                    </div>
+                `).join("") : "<p style='font-size:12px; color:#94a3b8;'>No upcoming events.</p>";
+
+                document.getElementById("calendarFullEventsTable").innerHTML = events.length > 0 ? `
+                    <table style="width:100%; border-collapse: collapse;">
+                        <thead style="background:#f8f9fa;">
+                            <tr><th style="padding:10px;text-align:left;">Date</th><th style="padding:10px;text-align:left;">Event</th></tr>
+                        </thead>
+                        <tbody>${events.map(e => `
+                            <tr><td style="padding:10px;border-bottom:1px solid #eee;">${e.date}</td><td style="padding:10px;border-bottom:1px solid #eee;"><b>${e.title}</b></td></tr>
+                        `).join("")}</tbody>
+                    </table>` : "<p>No entries yet.</p>";
+            } catch(e) {}
+        }
+
+        async function submitNoc(e) {
+            e.preventDefault();
+            const details = document.getElementById("nocDetails").value;
+            const letter_url = document.getElementById("nocLetterUrl").value;
+            
+            const res = await fetch("/api/noc/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ details, letter_url })
+            });
+            const result = await res.json();
+            if (result.status === "success") {
+                alert("✅ NOC Request submitted successfully!");
+                document.getElementById("nocForm").reset();
+                loadNocHistory();
+            } else {
+                alert("❌ Error: " + result.message);
+            }
+        }
+
+        async function loadNocHistory() {
+            const res = await fetch("/api/noc/student_history");
+            const data = await res.json();
+            const list = document.getElementById("nocStatusList");
+            
+            if (data.requests && data.requests.length > 0) {
+                list.innerHTML = data.requests.map(r => `
+                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Submitted on ${r.created_at.split(' ')[0]}</span>
+                                <p style="margin: 5px 0; color: #334155;">${r.details}</p>
+                                <a href="${r.letter_url}" target="_blank" style="font-size: 13px; color: #6c5ce7; text-decoration: none;"><i class="fa fa-file-pdf"></i> View Document</a>
+                            </div>
+                            <span class="badge" style="background: ${r.status === 'Approved' ? '#10b981' : r.status === 'Rejected' ? '#ef4444' : '#f59e0b'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                ${r.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join("");
+            } else {
+                list.innerHTML = "<p style='text-align:center; color:#94a3b8;'>No NOC requests found.</p>";
+            }
+        }
+
+        const originalOnload = window.onload;
+        window.onload = function() {
+            if(originalOnload) originalOnload();
+            loadCalendarData();
+            loadNocHistory();
         }
     </script>
     <script>

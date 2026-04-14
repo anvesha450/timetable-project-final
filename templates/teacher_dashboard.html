@@ -338,18 +338,18 @@
                     </div>
                 </div>
                 <div class="stats-row">
+                    <div class="stat-card" id="absentActionCard" style="border-left: 5px solid #ef4444; display: none;">
+                        <div class="stat-icon" style="background: #fef2f2; color: #ef4444;"><i class="fa fa-user-minus"></i></div>
+                        <div style="flex: 1;">
+                            <h3 style="color: #ef4444; font-weight: 700;">Absent Today?</h3>
+                            <button onclick="markSelfAbsent()" class="btn-primary" style="background: #ef4444; padding: 6px 12px; font-size: 11px; margin-top: 5px; box-shadow: none;">Mark Absent</button>
+                        </div>
+                    </div>
                     <div class="stat-card" onclick="showSection('my_timetable')">
                         <div class="stat-icon purple"><i class="fa fa-chalkboard"></i></div>
                         <div>
                             <h3>Today's Classes</h3>
                             <div class="stat-value" id="todayClassCount">-</div>
-                        </div>
-                    </div>
-                    <div class="stat-card" onclick="showSection('assignments')">
-                        <div class="stat-icon blue"><i class="fa fa-tasks"></i></div>
-                        <div>
-                            <h3>Active Assignments</h3>
-                            <div class="stat-value" id="assignmentCount">-</div>
                         </div>
                     </div>
                     <div class="stat-card" onclick="showSection('notification')">
@@ -376,14 +376,40 @@
             <!-- QUICK LINKS -->
             <div id="quick_links" class="section" style="display:none;">
                 <h2>Quick Links</h2>
-                <div class="cards feature-grid">
-                    <div class="card interactive-card teacher-card" onclick="alert('Entering Academic Calendar')">
-                        <i class="fa fa-calendar-alt fa-2x"></i>
-                        <h3>Academic Calendar</h3>
+                <div class="cards feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                    <!-- Calendar Main Card -->
+                    <div class="card interactive-card teacher-card" onclick="viewAcademicCalendar()" style="min-height: 250px; display: flex; flex-direction: column; justify-content: center;">
+                        <i class="fa fa-calendar-alt fa-3x" style="color: #6366f1;"></i>
+                        <h3 style="margin-top: 15px;">Official Academic Calendar</h3>
+                        <p style="color: #64748b; font-size: 14px;">View PDF and Event Schedule</p>
                     </div>
-                    <div class="card interactive-card teacher-card" onclick="alert('Entering Library Portal')">
-                        <i class="fa fa-book-reader fa-2x"></i>
-                        <h3>Library Portal</h3>
+
+                    <!-- Upcoming Events card -->
+                    <div class="card" style="min-height: 250px; text-align: left; background: white; border: 1px solid #e2e8f0; cursor: default;">
+                        <h3 style="margin-bottom: 15px; border-bottom: 2px solid #6366f1; padding-bottom: 5px;"><i class="fa fa-bullhorn" style="color:#6366f1;"></i> Upcoming Events</h3>
+                        <div id="calendarEventsList" style="max-height: 150px; overflow-y: auto;">
+                            <p style="color: #94a3b8;">Loading events...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden Modal for Full Calendar View -->
+                <div id="calendarDetailModal" class="modal" style="display:none;">
+                    <div class="modal-content" style="max-width: 900px; padding: 0; overflow: hidden; border-radius: 15px;">
+                        <div style="background: #6366f1; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin:0;"><i class="fa fa-calendar"></i> Academic Calendar Detail</h2>
+                            <button onclick="closeCalendarModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+                        </div>
+                        <div style="padding: 20px; max-height: 80vh; overflow-y: auto;">
+                            <div id="calendarImgContainer" style="margin-bottom: 20px; text-align: center;"></div>
+                            <div style="text-align: center; margin-bottom: 20px;">
+                                <a id="calendarPdfLink" href="#" target="_blank" class="btn-ai" style="display: inline-block; background: #3b82f6;">
+                                    <i class="fa fa-file-pdf"></i> Open Official PDF
+                                </a>
+                            </div>
+                            <h3>Full Year Event List</h3>
+                            <div id="calendarFullEventsTable" style="margin-top: 15px;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -518,8 +544,30 @@
     <script>
         let notifCountGlobal = 0;
         let assignmentCountGlobal = 0;
+        let currentTeacherId = null;
 
         window.onload = async function () {
+            const username = localStorage.getItem("username");
+            if (username && username !== 'Guest') {
+                // Pre-load teacher info
+                try {
+                    const res = await fetch(`/api/teacher/info?username=${encodeURIComponent(username)}`);
+                    const data = await res.json();
+                    if (data.teacher_id) {
+                        currentTeacherId = data.teacher_id;
+                        document.getElementById("absentActionCard").style.display = "flex";
+                        // Auto-select in names dropdown if present
+                        setTimeout(() => {
+                            const sel = document.getElementById("teacherNameSelect");
+                            if (sel) {
+                                sel.value = username;
+                                viewTeacherTimetable();
+                            }
+                        }, 500);
+                    }
+                } catch(e) {}
+            }
+
             try {
                 const res = await fetch("/api/notifications/teacher");
                 const data = await res.json();
@@ -541,7 +589,7 @@
                 const resAsg = await fetch("/api/assignment");
                 const dataAsg = await resAsg.json();
                 assignmentCountGlobal = dataAsg.assignments ? dataAsg.assignments.length : 0;
-                document.getElementById("assignmentCount").innerText = assignmentCountGlobal;
+                // document.getElementById("assignmentCount").innerText = assignmentCountGlobal;
                 if (dataAsg.assignments && dataAsg.assignments.length > 0) {
                     document.getElementById("teacherAssignmentList").innerHTML = dataAsg.assignments.map(a => `
                         <div class="notification-item" style="border-left-color: #f59e0b;">
@@ -558,6 +606,32 @@
             loadTeacherPreferences();
             loadTeacherNames();
         };
+
+        async function markSelfAbsent() {
+            if (!currentTeacherId) return alert("Teacher ID not loaded. Please try again.");
+            const dayName = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
+            
+            if (dayName === 'Sunday') return alert("It's Sunday! No classes to substitute.");
+
+            if (!confirm(`Are you sure you want to mark yourself absent for today (${dayName})? This will automatically allot substitute teachers for your classes.`)) return;
+
+            try {
+                const res = await fetch("/api/auto_substitute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ teacher_id: currentTeacherId, day: dayName })
+                });
+                const result = await res.json();
+                if (result.status === "success") {
+                    alert(`✅ Successfully allotted ${result.count} substitute teachers for your classes today.`);
+                    viewTeacherTimetable();
+                } else {
+                    alert("❌ " + result.message);
+                }
+            } catch (e) {
+                alert("Error sending substitution request.");
+            }
+        }
 
         async function loadTeacherNames() {
             try {
@@ -770,6 +844,83 @@
         function logout() {
             localStorage.removeItem("username");
             window.location.href = "/";
+        }
+
+        async function viewAcademicCalendar() {
+            document.getElementById("calendarDetailModal").style.display = "block";
+            loadCalendarData();
+        }
+
+        function closeCalendarModal() {
+            document.getElementById("calendarDetailModal").style.display = "none";
+        }
+
+        async function loadCalendarData() {
+            try {
+                const [settingsRes, eventsRes] = await Promise.all([
+                    fetch("/api/settings"),
+                    fetch("/api/events")
+                ]);
+                const settings = await settingsRes.json();
+                const eventsData = await eventsRes.json();
+                const events = eventsData.events || [];
+
+                // Update PDF Link
+                const pdfLink = document.getElementById("calendarPdfLink");
+                if (settings.academic_calendar) {
+                    pdfLink.href = settings.academic_calendar;
+                    pdfLink.style.display = "inline-block";
+                } else {
+                    pdfLink.style.display = "none";
+                }
+
+                // Update Image
+                const imgContainer = document.getElementById("calendarImgContainer");
+                if (settings.academic_calendar_image) {
+                    imgContainer.innerHTML = `<img src="${settings.academic_calendar_image}" style="max-width: 100%; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">`;
+                } else {
+                    imgContainer.innerHTML = `<p style="color:#94a3b8; padding: 20px; background:#f8fafc; border-radius:8px;">No calendar image uploaded.</p>`;
+                }
+
+                // Update Upcoming Events Card (Next 5 events)
+                const now = new Date().toISOString().split('T')[0];
+                const upcoming = events.filter(e => e.date >= now).slice(0, 5);
+                const eventsListHtml = upcoming.length > 0 ? upcoming.map(e => `
+                    <div style="padding: 10px; border-bottom: 1px solid #f1f5f9;">
+                         <div style="font-size: 11px; color: #6366f1; font-weight: 700;">${e.date}</div>
+                         <div style="font-weight: 600; color: #1e293b;">${e.title}</div>
+                    </div>
+                `).join("") : "<p style='color:#94a3b8; padding:10px;'>No upcoming events.</p>";
+                document.getElementById("calendarEventsList").innerHTML = eventsListHtml;
+
+                // Update Modal Table
+                const fullTableHtml = events.length > 0 ? `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="background: #f1f5f9;">
+                            <tr><th style="padding:10px; text-align:left;">Date</th><th style="padding:10px; text-align:left;">Event</th><th style="padding:10px; text-align:left;">Type</th></tr>
+                        </thead>
+                        <tbody>
+                            ${events.map(e => `
+                                <tr>
+                                    <td style="padding:10px; border-bottom:1px solid #f1f5f9;">${e.date}</td>
+                                    <td style="padding:10px; border-bottom:1px solid #f1f5f9;"><b>${e.title}</b><br><small>${e.desc || ''}</small></td>
+                                    <td style="padding:10px; border-bottom:1px solid #f1f5f9;"><span style="padding: 3px 8px; border-radius: 12px; font-size: 11px; background:#e0e7ff; color:#4338ca;">${e.type}</span></td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                ` : "<p>No entries in academic calendar.</p>";
+                document.getElementById("calendarFullEventsTable").innerHTML = fullTableHtml;
+
+            } catch (e) {
+                console.error("Error loading calendar data", e);
+            }
+        }
+
+        const originalOnload = window.onload;
+        window.onload = function() {
+            if(originalOnload) originalOnload();
+            loadCalendarData();
         }
     </script>
     <script>

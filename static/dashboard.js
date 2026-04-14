@@ -9,8 +9,14 @@ function showSection(id) {
 
 // Load data
 async function loadDashboard() {
-    const res = await fetch("/admin-data");
-    const data = await res.json();
+    const [data, settings] = await Promise.all([
+        (await fetch("/admin-data")).json(),
+        (await fetch("/api/settings")).json()
+    ]);
+
+    if(settings.academic_calendar && document.getElementById("calendarUrlInput")) {
+        document.getElementById("calendarUrlInput").value = settings.academic_calendar;
+    }
 
     // Populate dashboard counts
     if (document.getElementById("dashTeacherCount")) {
@@ -901,8 +907,15 @@ async function loadClassTimetable(classId, className) {
     const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7 };
     days.sort((a,b) => (dayOrder[a] || 8) - (dayOrder[b] || 8));
     
-    const periods = [...new Set(classTimetable.map(t => t.period))].sort((a,b) => a-b);
-    const { lunchAfter } = getPeriodTimings();
+    const { periodsCount, lunchAfter } = getPeriodTimings();
+    
+    // Determine the periods to show: either from data or from settings
+    const dataPeriods = [...new Set(classTimetable.map(t => t.period))];
+    const maxDataPeriod = dataPeriods.length > 0 ? Math.max(...dataPeriods) : 0;
+    const finalPeriodsCount = Math.max(periodsCount, maxDataPeriod);
+    
+    const displayPeriods = [];
+    for (let i = 1; i <= finalPeriodsCount; i++) displayPeriods.push(i);
     
     let headerHtml = `<th style="background:#f4f7fa; color:#2d3436; padding: 15px;">Period / Day</th>`;
     days.forEach(day => {
@@ -911,9 +924,9 @@ async function loadClassTimetable(classId, className) {
     document.getElementById("timetableHeaderRow").innerHTML = headerHtml;
     
     let bodyHtml = "";
-    periods.forEach((p, idx) => {
+    displayPeriods.forEach((p, idx) => {
         // Insert lunch row before this period if needed
-        if (lunchAfter > 0 && idx > 0 && periods[idx - 1] <= lunchAfter && p > lunchAfter) {
+        if (lunchAfter > 0 && p === lunchAfter + 1) {
             bodyHtml += `<tr>
                 <td colspan="${days.length + 1}" style="text-align:center; padding: 10px; background: #fef3c7; color: #92400e; font-weight: 700; border-bottom: 1px solid #fbbf24; font-size: 14px;">
                     🍽 LUNCH BREAK
@@ -1005,11 +1018,16 @@ async function loadEditClassTimetable(classId, className) {
 }
 
 function renderEditGrid(classTimetable, className) {
-    const days = [...new Set(classTimetable.map(t => t.day))];
-    const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7 };
-    days.sort((a,b) => (dayOrder[a] || 8) - (dayOrder[b] || 8));
-    const periods = [...new Set(classTimetable.map(t => t.period))].sort((a,b) => a-b);
-    const { lunchAfter } = getPeriodTimings();
+    const days = [...new Set(classTimetable.map(t => t.day))].sort((a,b) => ({"Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7}[a] || 8) - ({"Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7}[b] || 8));
+    const { periodsCount, lunchAfter } = getPeriodTimings();
+    
+    // Determine the periods to show
+    const dataPeriods = [...new Set(classTimetable.map(t => t.period))];
+    const maxDataPeriod = dataPeriods.length > 0 ? Math.max(...dataPeriods) : 0;
+    const finalPeriodsCount = Math.max(periodsCount, maxDataPeriod);
+    
+    const displayPeriods = [];
+    for (let i = 1; i <= finalPeriodsCount; i++) displayPeriods.push(i);
     
     let headerHtml = `<th style="background:#fef3c7; color:#92400e; padding: 15px;">Period / Day</th>`;
     days.forEach(day => {
@@ -1018,8 +1036,8 @@ function renderEditGrid(classTimetable, className) {
     document.getElementById('editTimetableHeaderRow').innerHTML = headerHtml;
     
     let bodyHtml = '';
-    periods.forEach((p, idx) => {
-        if (lunchAfter > 0 && idx > 0 && periods[idx - 1] <= lunchAfter && p > lunchAfter) {
+    displayPeriods.forEach((p, idx) => {
+        if (lunchAfter > 0 && p === lunchAfter + 1) {
             bodyHtml += `<tr>
                 <td colspan="${days.length + 1}" style="text-align:center; padding: 10px; background: #fef3c7; color: #92400e; font-weight: 700; border-bottom: 1px solid #fbbf24; font-size: 14px;">
                     🍽 LUNCH BREAK
@@ -1188,7 +1206,138 @@ async function deleteEditSlot() {
         alert('✅ Slot deleted.');
         closeEditSlotModal();
         refreshEditTimetable();
-    } else {
         alert('❌ Error deleting slot.');
     }
 }
+
+async function saveCalendarSettings() {
+    const url = document.getElementById("calendarUrlInput").value;
+    const img = document.getElementById("calendarImageInput").value;
+    const status = document.getElementById("calendarStatus");
+    
+    await fetch("/api/settings/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: 'academic_calendar', value: url })
+    });
+    
+    await fetch("/api/settings/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: 'academic_calendar_image', value: img })
+    });
+    
+    status.style.display = "block";
+    status.style.color = "#10b981";
+    status.innerText = "✅ Links saved successfully!";
+    setTimeout(() => { status.style.display = "none"; }, 3000);
+}
+
+async function addCalendarEvent() {
+    const date = document.getElementById("eventDate").value;
+    const title = document.getElementById("eventTitle").value;
+    const desc = document.getElementById("eventDesc").value;
+    const type = document.getElementById("eventType").value;
+    
+    if(!date || !title) return alert("Date and Title are required!");
+
+    const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, title, desc, type })
+    });
+    const result = await res.json();
+    if(result.status === "success") {
+        document.getElementById("eventDate").value = "";
+        document.getElementById("eventTitle").value = "";
+        document.getElementById("eventDesc").value = "";
+        loadEvents();
+    }
+}
+
+async function loadEvents() {
+    const res = await fetch("/api/events");
+    const data = await res.json();
+    const table = document.getElementById("eventListTable");
+    if(!table) return;
+
+    if(data.events && data.events.length > 0) {
+        table.innerHTML = data.events.map(e => `
+            <tr>
+                <td style="padding:12px; border-bottom:1px solid #f1f5f9;"><b>${e.date}</b></td>
+                <td style="padding:12px; border-bottom:1px solid #f1f5f9;">${e.title}</td>
+                <td style="padding:12px; border-bottom:1px solid #f1f5f9;"><span class="badge ${e.type.toLowerCase()}">${e.type}</span></td>
+                <td style="padding:12px; border-bottom:1px solid #f1f5f9; text-align:center;">
+                    <button onclick="deleteEvent(${e.id})" style="color:#ef4444; background:none; border:none; cursor:pointer;"><i class="fa fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join("");
+    } else {
+        table.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">No events scheduled yet.</td></tr>`;
+    }
+}
+
+async function deleteEvent(id) {
+    if(!confirm("Are you sure?")) return;
+    await fetch(`/api/events/delete/${id}`, { method: 'DELETE' });
+    loadEvents();
+}
+
+// In loadDashboard, we should also call loadEvents and populate image input
+// ... I will use multi_replace for loadDashboard later if needed ...
+
+async function loadAllNocRequests() {
+    const res = await fetch("/api/noc/admin/all");
+    const data = await res.json();
+    const list = document.getElementById("nocAdminTableBody");
+    if (!list) return;
+
+    if (data.requests && data.requests.length > 0) {
+        list.innerHTML = data.requests.map(r => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding:15px;"><b>${r.student_name}</b></td>
+                <td style="padding:15px;">${r.created_at.split(' ')[0]}</td>
+                <td style="padding:15px; max-width: 250px; font-size: 13px;">${r.details}</td>
+                <td style="padding:15px;">
+                    <a href="${r.letter_url}" target="_blank" class="btn-ai" style="padding:5px 10px; font-size:12px; background:#6366f1;">
+                        <i class="fa fa-external-link"></i> View
+                    </a>
+                </td>
+                <td style="padding:15px;">
+                    <span style="padding:4px 10px; border-radius:30px; font-size:12px; font-weight:600; background: ${r.status === 'Approved' ? '#ecfdf5' : r.status === 'Rejected' ? '#fef2f2' : '#fffbeb'}; color: ${r.status === 'Approved' ? '#10b981' : r.status === 'Rejected' ? '#ef4444' : '#f59e0b'};">
+                        ${r.status}
+                    </span>
+                </td>
+                <td style="padding:15px; text-align:center;">
+                    <div style="display:flex; gap:5px; justify-content:center;">
+                        <button onclick="updateNocStatus(${r.id}, 'Approved')" class="btn-ai" style="padding:5px 10px; font-size:11px; background:#10b981;">Approve</button>
+                        <button onclick="updateNocStatus(${r.id}, 'Rejected')" class="btn-ai" style="padding:5px 10px; font-size:11px; background:#ef4444;">Reject</button>
+                    </div>
+                </td>
+            </tr>
+        `).join("");
+    } else {
+        list.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:30px; color:#94a3b8;'>No NOC requests to review.</td></tr>";
+    }
+}
+
+async function updateNocStatus(id, status) {
+    const res = await fetch("/api/noc/admin/update_status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status })
+    });
+    const result = await res.json();
+    if (result.status === "success") {
+        loadAllNocRequests();
+    } else {
+        alert("Error updating status");
+    }
+}
+
+window.onload = function() {
+    loadDashboard();
+    loadEvents();
+    loadAllNocRequests();
+};
+

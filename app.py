@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 import string
 import random
 import os
@@ -169,55 +169,22 @@ def create_user_table():
     )
     """)
 
-    # Commit table creation first (important for PostgreSQL - rollback would undo everything)
-    conn.commit()
-
-    # Safely add missing columns to existing databases (these columns already exist in CREATE TABLE above,
-    # but this handles upgrades from older database versions)
-    for alter_sql in [
-        "ALTER TABLE timetables ADD COLUMN substitute_id INTEGER",
-        "ALTER TABLE teacher_subjects ADD COLUMN priority INTEGER DEFAULT 1"
-    ]:
-        try:
-            cursor.execute(alter_sql)
-            conn.commit()
-        except Exception:
-            conn.rollback()
-
-    conn.commit()
-    conn.close()
-
-
-def get_user(username):
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(q("SELECT * FROM users WHERE username=%s"), (username,))
-    user = cursor.fetchone()
-
-    conn.close()
-    return user
-
-
-def add_user(username, password, role):
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        q("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)"),
-        (username, password, role)
+    cursor.execute(f"""
+    CREATE TABLE IF NOT EXISTS settings (
+        id {pk},
+        key TEXT UNIQUE,
+        value TEXT
     )
-
+    """)
     conn.commit()
-    conn.close()
 
-
+    # Commit table creation first
+...
 # ---------------- ROUTES ----------------
 
 @app.route("/")
 def home():
     return render_template("login.html")
-
 
 @app.route("/dashboard")
 def dashboard():
@@ -231,42 +198,97 @@ def teacher_dashboard():
 def student_dashboard():
     return render_template("student_dashboard.html")
 
-
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-
     username = data["username"]
     password = data["password"]
     role = data.get("role", "student")
 
-    user = get_user(username)
+    conn = get_db()
+    cursor = conn.cursor()
 
-    if user:
-        if user[3] != role:
+    cursor.execute(q("SELECT password, role FROM users WHERE username=%s"), (username,))
+    row = cursor.fetchone()
+
+    if row:
+        stored_password, stored_role = row
+        if stored_role != role:
+            conn.close()
             return jsonify({"status": "wrong role"})
 
-        if user[2] == password:
-
-            # ✅ SAVE LOGIN HISTORY (ONLY HERE)
-            conn = get_db()
-            cursor = conn.cursor()
-
+        if stored_password == password:
+            # ✅ SAVE LOGIN HISTORY
             cursor.execute(
                 q("INSERT INTO login_history (username, role, time) VALUES (%s, %s, NOW())"),
                 (username, role)
             )
-
             conn.commit()
             conn.close()
-
-            return jsonify({"status": "success", "role": user[3]})
+            return jsonify({"status": "success", "role": role})
         else:
+            conn.close()
             return jsonify({"status": "wrong password"})
     else:
-        # New user — create account for any role
-        add_user(username, password, role)
+        # New user — create account
+        cursor.execute(
+            q("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)"),
+            (username, password, role)
+        )
+        conn.commit()
+        conn.close()
         return jsonify({"status": "new user created", "role": role})
+
+@app.route("/api/settings", methods=["GET"])
+def api_get_settings():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT key, value FROM settings")
+    rows = cursor.fetchall()
+    conn.close()
+    return jsonify({row[0]: row[1] for row in rows})
+
+@app.route("/api/settings/update", methods=["POST"])
+def api_update_setting():
+    data = request.json
+    key = data.get("key")
+    val = data.get("value")
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(q("INSERT INTO settings (key, value) VALUES (%s, %s)"), (key, val))
+    except Exception:
+        if USE_POSTGRES: conn.rollback()
+        cursor.execute(q("UPDATE settings SET value=%s WHERE key=%s"), (val, key))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+@app.route("/api/events", methods=["GET", "POST"])
+def api_manage_events():
+    conn = get_db()
+    cursor = conn.cursor()
+    if request.method == "POST":
+        data = request.json
+        cursor.execute(q("INSERT INTO academic_events (event_date, event_title, event_desc, event_type) VALUES (%s, %s, %s, %s)"),
+                      (data["date"], data["title"], data["desc"], data.get("type", "Event")))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    else:
+        cursor.execute("SELECT id, event_date, event_title, event_desc, event_type FROM academic_events ORDER BY event_date")
+        events = [{"id": r[0], "date": r[1], "title": r[2], "desc": r[3], "type": r[4]} for r in cursor.fetchall()]
+        conn.close()
+        return jsonify({"events": events})
+
+@app.route("/api/events/delete/<int:id>", methods=["DELETE"])
+def api_delete_event(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(q("DELETE FROM academic_events WHERE id=%s"), (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
         
 @app.route("/admin-data")
 def admin_data():
@@ -616,7 +638,7 @@ def api_get_teacher_info():
     classes = [{"id": r[0], "course_name": r[1], "section": r[2]} for r in cursor.fetchall()]
     
     conn.close()
-    return jsonify({"subjects": subjects, "classes": classes})
+    return jsonify({"teacher_id": tid, "subjects": subjects, "classes": classes})
 
 @app.route("/api/teacher/preferences", methods=["GET"])
 def api_get_teacher_preferences():
@@ -975,6 +997,66 @@ def api_check_db():
     
     conn.close()
     return jsonify(result)
+
+# --- NOC ROUTES ---
+@app.route("/api/noc/submit", methods=["POST"])
+def api_noc_submit():
+    user_id = session.get("user_id")
+    if not user_id: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json
+    details = data.get("details")
+    letter_url = data.get("letter_url")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(q("INSERT INTO noc_requests (student_id, details, letter_url) VALUES (%s, %s, %s)"),
+                   (user_id, details, letter_url))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+@app.route("/api/noc/student_history")
+def api_noc_student_history():
+    user_id = session.get("user_id")
+    if not user_id: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(q("SELECT id, details, letter_url, status, created_at FROM noc_requests WHERE student_id = %s ORDER BY created_at DESC"), (user_id,))
+    rows = cursor.fetchall()
+    requests = [{"id": r[0], "details": r[1], "letter_url": r[2], "status": r[3], "created_at": str(r[4])} for r in rows]
+    conn.close()
+    return jsonify({"status": "success", "requests": requests})
+
+@app.route("/api/noc/admin/all")
+def api_noc_admin_all():
+    conn = get_db()
+    cursor = conn.cursor()
+    # Join with users to get student name
+    cursor.execute(q("""
+        SELECT n.id, n.details, n.letter_url, n.status, n.created_at, u.username 
+        FROM noc_requests n 
+        JOIN users u ON n.student_id = u.id 
+        ORDER BY n.created_at DESC
+    """))
+    rows = cursor.fetchall()
+    requests = [{"id": r[0], "details": r[1], "letter_url": r[2], "status": r[3], "created_at": str(r[4]), "student_name": r[5]} for r in rows]
+    conn.close()
+    return jsonify({"status": "success", "requests": requests})
+
+@app.route("/api/noc/admin/update_status", methods=["POST"])
+def api_noc_update_status():
+    data = request.json
+    request_id = data.get("id")
+    status = data.get("status")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(q("UPDATE noc_requests SET status = %s WHERE id = %s"), (status, request_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
 
 # Always create tables on import (needed for gunicorn)
 create_user_table()
